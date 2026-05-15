@@ -1762,69 +1762,97 @@
 
         // ==================== 渲染配置常量 ====================
         const RENDER = {
-          FPS: 25,                  // Canvas 合成帧率
-          HORIZONTAL_W: 1920,       // 横屏画布宽度
-          HORIZONTAL_H: 1080,       // 横屏画布高度
-          VERTICAL_W: 720,          // 竖屏画布宽度
-          VERTICAL_H: 1280,         // 竖屏画布高度
-          PPT_AREA_X: 40,           // PPT 投影区起始 X
-          PPT_AREA_Y: 40,           // PPT 投影区起始 Y
-          PPT_AREA_W: 1440,         // PPT 投影区宽度
-          PPT_AREA_H: 810,          // PPT 投影区高度
-          AVATAR_W: 400,            // 数字人宽度
-          AVATAR_MARGIN: 20,        // 数字人边距
-          PT_TO_PX: 1.5,            // Pt 到 Canvas Px 换算比
-          SUBTITLE_BOTTOM_MARGIN: 50  // 字幕底部边距
+          FPS: 25,
+          HORIZONTAL_W: 1920,
+          HORIZONTAL_H: 1080,
+          VERTICAL_W: 720,
+          VERTICAL_H: 1280,
+          PPT_AREA_X: 40,
+          PPT_AREA_Y: 40,
+          PPT_AREA_W: 1440,
+          PPT_AREA_H: 810,
+          AVATAR_W: 400,
+          AVATAR_MARGIN: 20,
+          PT_TO_PX: 1.5,
+          SUBTITLE_BOTTOM_MARGIN: 50
         };
         const UPLOAD_LIMITS = { PPT_MAX_MB: 50, DOC_MAX_MB: 20 };
-        const AI_TIMEOUT_MS = 600000;  // AI 接口超时 10 分钟
+        const AI_TIMEOUT_MS = 600000;
+        const IMAGE_LAYOUTS = ['text_left_chart_right', 'image_left_text_right', 'data_focus'];
+
+        function getImagePosition(layout) {
+          if (layout === 'text_left_chart_right') return { x: 52, y: 15, w: 40, h: 70 };
+          if (layout === 'image_left_text_right') return { x: 5, y: 15, w: 40, h: 70 };
+          if (layout === 'data_focus') return { x: 5, y: 65, w: 90, h: 28 };
+          return null;
+        }
 
         // ==================== 版式坐标字典 ====================
         function getLayoutCoords(layout, page, themeColorOverride) {
-          const tc = themeColorOverride || aiPPTThemeColor.value || '#0F172A'; // 默认高科技感深色
-          const sc = '#475569'; // 标准副标题灰
+          const tc = themeColorOverride || aiPPTThemeColor.value || '#0F172A';
+          const sc = '#475569';
           const CENTER = 'center', LEFT = 'left';
           const el = [];
 
           const t = page.title || '';
           const st = page.subtitle || '';
-          const bullets = page.exact_content || [];
+          const bullets = Array.isArray(page.exact_content) ? page.exact_content : [];
           const contentText = bullets.map(c => '• ' + c).join('\n\n');
+          const splitBullets = (items, chunks) => {
+            const groups = Array.from({ length: chunks }, () => []);
+            items.forEach((item, idx) => groups[idx % chunks].push(item));
+            return groups;
+          };
 
           if (layout === 'cover') {
             if (t) el.push({ id: 't', text: t, x: 10, y: 35, w: 80, fontSize: 56, color: '#FFFFFF', bold: true, align: CENTER, shadow: true });
-            if (st) el.push({ id: 's', text: st, x: 10, y: 55, w: 80, fontSize: 26, color: 'rgba(255,255,255,0.85)', align: CENTER, shadow: true });
+            if (st) el.push({ id: 's', text: st, x: 10, y: 55, w: 80, fontSize: 26, color: '#FFFFFF', align: CENTER, shadow: true });
+          } else if (layout === 'text_only') {
+            if (t) el.push({ id: 't', text: t, x: 8, y: 8, w: 84, fontSize: 36, color: tc, bold: true, align: LEFT });
+            if (st) el.push({ id: 's', text: st, x: 8, y: 18, w: 84, fontSize: 20, color: sc, align: LEFT });
+            if (contentText) el.push({ id: 'c', text: contentText, x: 8, y: 30, w: 84, fontSize: 22, color: '#334155', align: LEFT, lineGap: 16 });
           } else if (layout === 'text_left_chart_right') {
             if (t) el.push({ id: 't', text: t, x: 8, y: 10, w: 40, fontSize: 36, color: tc, bold: true, align: LEFT });
             if (st) el.push({ id: 's', text: st, x: 8, y: 22, w: 40, fontSize: 20, color: sc, align: LEFT });
             if (contentText) el.push({ id: 'c', text: contentText, x: 8, y: 32, w: 38, fontSize: 22, color: '#334155', align: LEFT, lineGap: 16 });
-            // 配图位置: x: 52, y: 15, w: 40, h: 70
           } else if (layout === 'image_left_text_right') {
-            // 配图位置: x: 5, y: 15, w: 40, h: 70
             if (t) el.push({ id: 't', text: t, x: 50, y: 10, w: 42, fontSize: 36, color: tc, bold: true, align: LEFT });
             if (st) el.push({ id: 's', text: st, x: 50, y: 22, w: 42, fontSize: 20, color: sc, align: LEFT });
             if (contentText) el.push({ id: 'c', text: contentText, x: 50, y: 32, w: 42, fontSize: 22, color: '#334155', align: LEFT, lineGap: 16 });
           } else if (layout === 'comparison') {
             if (t) el.push({ id: 't', text: t, x: 8, y: 8, w: 84, fontSize: 36, color: tc, bold: true, align: CENTER });
             if (st) el.push({ id: 's', text: st, x: 8, y: 18, w: 84, fontSize: 20, color: sc, align: CENTER });
-            const leftText = bullets.filter((_, i) => i % 2 === 0).map(c => '• ' + c).join('\n\n');
-            const rightText = bullets.filter((_, i) => i % 2 === 1).map(c => '• ' + c).join('\n\n');
-            if (leftText) el.push({ id: 'c_left', text: leftText, x: 10, y: 30, w: 38, fontSize: 22, color: '#334155', align: LEFT, lineGap: 16 });
-            if (rightText) el.push({ id: 'c_right', text: rightText, x: 52, y: 30, w: 38, fontSize: 22, color: '#334155', align: LEFT, lineGap: 16 });
+            const [leftBullets, rightBullets] = splitBullets(bullets, 2);
+            const leftText = leftBullets.map(c => '• ' + c).join('\n\n');
+            const rightText = rightBullets.map(c => '• ' + c).join('\n\n');
+            if (leftText) el.push({ id: 'c_left', text: leftText, x: 8, y: 30, w: 38, fontSize: 22, color: '#334155', align: LEFT, lineGap: 16, hasBg: true });
+            if (rightText) el.push({ id: 'c_right', text: rightText, x: 54, y: 30, w: 38, fontSize: 22, color: '#334155', align: LEFT, lineGap: 16, hasBg: true });
+          } else if (layout === 'three_columns') {
+            if (t) el.push({ id: 't', text: t, x: 8, y: 6, w: 84, fontSize: 34, color: tc, bold: true, align: CENTER });
+            if (st) el.push({ id: 's', text: st, x: 8, y: 15, w: 84, fontSize: 18, color: sc, align: CENTER });
+            const groups = splitBullets(bullets, 3);
+            const cols = [8, 36, 64];
+            groups.forEach((group, idx) => {
+              const text = group.map(c => '• ' + c).join('\n\n');
+              if (text) el.push({ id: 'col_' + idx, text, x: cols[idx], y: 28, w: 24, fontSize: 20, color: '#334155', align: LEFT, lineGap: 14, hasBg: true });
+            });
           } else if (layout === 'grid_4') {
             if (t) el.push({ id: 't', text: t, x: 8, y: 5, w: 84, fontSize: 34, color: tc, bold: true, align: CENTER });
             if (st) el.push({ id: 's', text: st, x: 8, y: 14, w: 84, fontSize: 18, color: sc, align: CENTER });
-            const gridX = [8, 50], gridY = [22, 48], gridW = 38, gridH = 24;
+            const gridX = [8, 50], gridY = [24, 52], gridW = 38;
             for (let g = 0; g < 4 && g < bullets.length; g++) {
               const cx = gridX[g % 2];
               const cy = gridY[Math.floor(g / 2)];
-              el.push({ id: 'g' + g, text: '• ' + bullets[g], x: cx, y: cy, w: gridW, fontSize: 20, color: '#334155', align: LEFT, lineGap: 12 });
+              el.push({ id: 'g' + g, text: '• ' + bullets[g], x: cx, y: cy, w: gridW, fontSize: 19, color: '#334155', align: LEFT, lineGap: 12, hasBg: true });
             }
+          } else if (layout === 'data_focus') {
+            if (t) el.push({ id: 't', text: t, x: 8, y: 8, w: 84, fontSize: 36, color: tc, bold: true, align: LEFT });
+            if (st) el.push({ id: 's', text: st, x: 8, y: 18, w: 84, fontSize: 20, color: sc, align: LEFT });
+            if (contentText) el.push({ id: 'c', text: contentText, x: 8, y: 30, w: 84, fontSize: 21, color: '#334155', align: LEFT, lineGap: 14, hasBg: true });
           } else if (layout === 'ending') {
             if (t) el.push({ id: 't', text: t, x: 10, y: 40, w: 80, fontSize: 52, color: '#FFFFFF', bold: true, align: CENTER, shadow: true });
-            if (st) el.push({ id: 's', text: st, x: 10, y: 58, w: 80, fontSize: 24, color: 'rgba(255,255,255,0.85)', align: CENTER, shadow: true });
+            if (st) el.push({ id: 's', text: st, x: 10, y: 58, w: 80, fontSize: 24, color: '#FFFFFF', align: CENTER, shadow: true });
           } else {
-            // 默认基础排版 (标题在上，内容在下) — text_only / data_focus 等
             if (t) el.push({ id: 't', text: t, x: 8, y: 8, w: 84, fontSize: 36, color: tc, bold: true, align: LEFT });
             if (st) el.push({ id: 's', text: st, x: 8, y: 18, w: 84, fontSize: 20, color: sc, align: LEFT });
             if (contentText) el.push({ id: 'c', text: contentText, x: 8, y: 30, w: 84, fontSize: 22, color: '#334155', align: LEFT, lineGap: 16 });
@@ -2331,13 +2359,15 @@
             const page = currentEditingSlide.value;
             if (page) {
               page.inline_image_url = e.target.result;
-              // 如果当前页面原本没有配图占位，生成一个默认的绝对中心位置
               if (!page.inline_image_position) {
-                page.inline_image_position = { x: 30, y: 15, w: 40, h: 70 };
+                page.inline_image_position = getImagePosition(page.layout_style) || { x: 30, y: 15, w: 40, h: 70 };
               }
+              const inlineImg = new Image();
+              inlineImg.crossOrigin = 'anonymous';
+              inlineImg.src = e.target.result;
+              page.inline_image = inlineImg;
               aiPPTAssembledPages.value[editingSlideIdx.value] = { ...page };
               addLog('✅ 内联配图已通过本地上传替换', 'success');
-              // 自动选中图片以供用户立即拖拽
               selectEditorImage();
             }
             event.target.value = '';
@@ -2395,10 +2425,15 @@
         // ==================== V3: AI 生成 PPT 方法 ====================
         function getPageTypeLabel(layoutStyle) {
           const map = {
-            cover: '📔 封面', toc: '📋 目录', title_only: '📌 过渡页',
-            text_left_chart_right: '📊 左文右图', comparison: '⚖️ 对比',
-            three_columns: '📐 三列', four_grid: '🔲 四宫格',
-            timeline: '📅 时间轴', data_focus: '📈 数据', ending: '📄 结尾'
+            cover: '📔 封面',
+            text_only: '📝 纯文字',
+            text_left_chart_right: '📊 左文右图',
+            image_left_text_right: '🖼️ 左图右文',
+            comparison: '⚖️ 左右对比',
+            three_columns: '📐 三列并排',
+            grid_4: '🔲 四宫格',
+            data_focus: '📈 数据聚焦',
+            ending: '📄 结尾'
           };
           return map[layoutStyle] || '📝 正文';
         }
@@ -2505,7 +2540,6 @@
           try {
             // 1. 提取所有插图 (图文版式页的 inline_image_prompt)
             const inlineImages = [];
-            const IMAGE_LAYOUTS = ['text_left_chart_right', 'image_left_text_right', 'data_focus'];
             pages.forEach(page => {
               if (IMAGE_LAYOUTS.includes(page.layout_style) && page.inline_image_prompt) {
                 inlineImages.push({
@@ -2536,13 +2570,6 @@
             aiPPTAllImages.value = results;
 
             // 3. 组装版式数据 (图文版式固定配图坐标)
-            function getImagePosition(layout) {
-              if (layout === 'text_left_chart_right') return { x: 52, y: 15, w: 40, h: 70 };
-              if (layout === 'image_left_text_right') return { x: 5, y: 15, w: 40, h: 70 };
-              if (layout === 'data_focus') return { x: 5, y: 65, w: 90, h: 28 };
-              return null;
-            }
-
             aiPPTSlidesLayout.value = {
               slides: pages.map(p => ({
                 page_number: p.page_number,
@@ -4424,9 +4451,10 @@ ${sentencesList}
           regeneratePage, addBullet, openGeneratedImage, exportPPTX,
           useGeneratedPPTForBroadcast, openSlidePreview, openSlideEditor, closeSlideEditor,
           regenerateInlineImage, assemblePPT, getThumbnailElementStyle, getEditorElementStyle,
-          getEditorInlineImageStyle, selectEditorElement, startDragEditorElement, handleSlideDragMove,
-          handleSlideDragEnd, addEditorElement, removeEditorElement, removeEditorImage,
-          moveElementUp, moveElementDown, replaceBackgroundImage, replaceInlineImage,
+          getEditorInlineImageStyle, getEditorStageStyle, getThumbnailDividerStyle, getEditorDividerStyle,
+          showSlideDivider, selectEditorElement, selectEditorImage, startDragEditorElement, handleEditorContainerMouseDown,
+          handleSlideDragMove, handleSlideDragEnd, addEditorElement, removeEditorElement, removeEditorImage,
+          moveElementUp, moveElementDown, replaceBackgroundImage, replaceInlineImage, getImagePosition,
         };
       }
     }).mount('#app');
