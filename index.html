@@ -1544,7 +1544,7 @@
 
         // ==================== 版式坐标字典 ====================
         function getLayoutCoords(layout, page, themeColorOverride) {
-          const tc = themeColorOverride || aiPPTTopic.value || '#1e3a8a';
+          const tc = themeColorOverride || aiPPTThemeColor.value || '#1e3a8a';
           const BODY = '#334155', CENTER = 'center', LEFT = 'left';
           const el = [];
           const t = page.title || '';
@@ -1621,6 +1621,7 @@
         const aiPPTOutline = ref(null);
         const aiPPTSelectedPage = ref(null);
         const aiPPTOutlineDesc = ref(null);  // { cover_desc, body_desc, ending_desc }
+        const aiPPTThemeColor = ref('#1e3a8a');  // 后端返回的 theme_color
         const aiPPTBackgrounds = ref([]);
         const aiPPTOutlineLoading = ref(false);
         const aiPPTBackgroundsLoading = ref(false);
@@ -1769,6 +1770,10 @@
               body_desc: data.data.body_desc || '',
               ending_desc: data.data.ending_desc || ''
             };
+            // 保存 theme_color 供版式渲染（同步到独立 ref + 写入 outline）
+            const themeColor = data.data.theme_color || '#1e3a8a';
+            aiPPTThemeColor.value = themeColor;
+            data.data.theme_color = themeColor;
             aiPPTOutline.value = data.data;
             aiPPTSelectedPage.value = 0;
             addLog(`✅ PPT 大纲生成成功，共 ${pages.length} 页`, 'success');
@@ -1828,32 +1833,37 @@
         }
 
         async function regeneratePage(idx) {
+          // idx 是母版索引：0=cover, 1=body, 2=ending
+          const key = aiPPTBackgrounds.value[idx]?.key;
+          if (!key) {
+            addLog(`❌ regeneratePage: 无效的母版索引 ${idx}`, 'error');
+            return;
+          }
           aiPPTBackgrounds.value[idx].status = 'loading';
           const desc = aiPPTOutlineDesc.value || {};
-          const key = aiPPTBackgrounds.value[idx].key;
           const desc_map = { cover: desc.cover_desc || '', body: desc.body_desc || '', ending: desc.ending_desc || '' };
           try {
             const resp = await fetchWithTimeout(`${API_BASE_URL}/ai/generate-ppt-backgrounds`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                cover_desc: key === 'cover' ? (desc_map.cover || 'cover slide background, no text') : '',
-                body_desc: key === 'body' ? (desc_map.body || 'clean body slide background, no text') : '',
-                ending_desc: key === 'ending' ? (desc_map.ending || 'ending slide background, no text') : '',
+                cover_desc: key === 'cover' ? (desc_map.cover || 'Professional 16:9 cover slide background, clean corporate style, no text') : '',
+                body_desc: key === 'body' ? (desc_map.body || 'Minimalist 16:9 slide background, white with thin dark blue line at top, no text') : '',
+                ending_desc: key === 'ending' ? (desc_map.ending || 'Elegant 16:9 ending slide background, clean corporate style, no text') : '',
                 model: aiPPTImageModel.value
               })
-            });
+            }, 300000);
             const data = await resp.json();
             if (data.code !== 0) throw new Error(data.msg);
             const val = (data.data || {})[key];
             if (val) {
-              aiPPTBackgrounds.value[idx] = { key, page_number: 0, image_url: val.image_url, status: val.status || 'failed', error: val.error || '' };
+              aiPPTBackgrounds.value.splice(idx, 1, { key, page_number: 0, image_url: val.image_url, status: val.status || 'failed', error: val.error || '' });
               addLog(`✅ ${key} 母版重生成成功`, 'success');
             } else {
-              aiPPTBackgrounds.value[idx] = { key, page_number: 0, image_url: null, status: 'failed', error: 'no result' };
+              aiPPTBackgrounds.value.splice(idx, 1, { key, page_number: 0, image_url: null, status: 'failed', error: 'no result' });
             }
           } catch (e) {
-            aiPPTBackgrounds.value[idx].status = 'failed';
+            aiPPTBackgrounds.value.splice(idx, 1, { key, page_number: 0, image_url: null, status: 'failed', error: e.message?.substring(0, 200) || 'unknown error' });
             addLog(`❌ ${key} 重生成失败: ${e.message}`, 'error');
           }
         }
@@ -1883,7 +1893,7 @@
               if (p.layout_style === 'cover') bgUrl = bgMap.cover || bgMap.body || '';
               else if (p.layout_style === 'ending') bgUrl = bgMap.ending || bgMap.body || '';
               if (!p.elements || p.elements.length === 0) {
-                p.elements = getLayoutCoords(p.layout_style || 'content', p);
+                p.elements = getLayoutCoords(p.layout_style || 'content', p, aiPPTOutline.value?.theme_color);
               }
               return { ...p, image_url: bgUrl };
             });
@@ -1927,7 +1937,7 @@
             
             // 确保每页 elements 已装配
             if (!p.elements || p.elements.length === 0) {
-              p.elements = getLayoutCoords(p.layout_style || 'content', p);
+              p.elements = getLayoutCoords(p.layout_style || 'content', p, aiPPTOutline.value?.theme_color);
             }
             return {
               page_num: p.page_number,
@@ -1935,7 +1945,8 @@
               page_text: [p.title, ...(p.exact_content || [])].filter(Boolean).join('；'),
               page_image: img,
               page_image_url: bgUrl,
-              elements: p.elements || []
+              elements: p.elements || [],
+              layout_style: p.layout_style || 'content'
             };
           });
           
@@ -2447,16 +2458,16 @@ ${sentencesList}
         async function importFeishuPpt(code) {
           addLog('📄 正在拉取飞书 PPT 内容...', 'info');
           try {
-            const res = await fetch(`${API_BASE_URL}/feishu/oauth/callback?code=${code}&state=ppt_import`);
+            const res = await fetchWithTimeout(`${API_BASE_URL}/feishu/oauth/callback?code=${code}&state=ppt_import`, {}, 30000);
             const result = await res.json();
             if (result.code !== 0) throw new Error(result.msg);
             feishuUserInfo.openId = result.data.open_id;
             feishuUserInfo.accessToken = result.data.access_token;
-            const pptRes = await fetch(`${API_BASE_URL}/feishu/ppt/import`, {
+            const pptRes = await fetchWithTimeout(`${API_BASE_URL}/feishu/ppt/import`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ ppt_url: pptConfig.pptUrl, access_token: feishuUserInfo.accessToken })
-            });
+            }, 60000);
             const pptResult = await pptRes.json();
             if (pptResult.code !== 0) throw new Error(pptResult.msg);
             pptConfig.imported = true;
@@ -2497,11 +2508,11 @@ ${sentencesList}
               page_turning_rules: pageTurningNodes.value,
               video_file: videoBase64
             };
-            const res = await fetch(`${API_BASE_URL}/project/save`, {
+            const res = await fetchWithTimeout(`${API_BASE_URL}/project/save`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'X-Feishu-OpenId': feishuUserInfo.openId },
               body: JSON.stringify(params)
-            });
+            }, 60000);
             const result = await res.json();
             if (result.code !== 0) throw new Error(result.msg);
             addLog('✅ 项目全套配置保存成功', 'success');
@@ -2514,14 +2525,14 @@ ${sentencesList}
         async function loadCloudProjectList() {
           if (!feishuUserInfo.openId) return;
           try {
-            const res = await fetch(`${API_BASE_URL}/project/list`, {
+            const res = await fetchWithTimeout(`${API_BASE_URL}/project/list`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
                 'X-Feishu-OpenId': feishuUserInfo.openId
               },
               body: JSON.stringify({ open_id: feishuUserInfo.openId })
-            });
+            }, 30000);
             if (!res.ok) throw new Error(`HTTP ${res.status} - 网关拒绝访问`);
             const result = await res.json();
             if (result.code !== 0) throw new Error(result.msg);
@@ -2534,7 +2545,7 @@ ${sentencesList}
         async function reuseProject(project) {
           addLog(`☁️ 正在加载项目:${project.project_name}`, 'info');
           try {
-            const res = await fetch(`${API_BASE_URL}/project/detail?project_id=${project.project_id}`, { headers: { 'X-Feishu-OpenId': feishuUserInfo.openId } });
+            const res = await fetchWithTimeout(`${API_BASE_URL}/project/detail?project_id=${project.project_id}`, { headers: { 'X-Feishu-OpenId': feishuUserInfo.openId } }, 30000);
             const result = await res.json();
             if (result.code !== 0) throw new Error(result.msg);
             const data = result.data;
@@ -2566,11 +2577,11 @@ ${sentencesList}
         async function deleteCloudProject(project) {
           if (!confirm(`确定删除项目"${project.project_name}"吗？`)) return;
           try {
-            const res = await fetch(`${API_BASE_URL}/project/delete`, {
+            const res = await fetchWithTimeout(`${API_BASE_URL}/project/delete`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'X-Feishu-OpenId': feishuUserInfo.openId },
               body: JSON.stringify({ project_id: project.project_id })
-            });
+            }, 30000);
             const result = await res.json();
             if (result.code !== 0) throw new Error(result.msg);
             addLog('✅ 项目删除成功', 'success');
@@ -3264,7 +3275,7 @@ ${sentencesList}
           addLog('🎬 开始播报流程', 'success');
           try {
             addLog('正在获取鉴权信息...', 'info');
-            const authResponse = await fetch('https://avatar-roadcast-shakmjgzdi.cn-hangzhou.fcapp.run', {
+            const authResponse = await fetchWithTimeout('https://avatar-roadcast-shakmjgzdi.cn-hangzhou.fcapp.run', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -3272,7 +3283,7 @@ ${sentencesList}
                 vcn: config.rdn,
                 fullText: config.text
               })
-            });
+            }, 30000);
             if (!authResponse.ok) {
               throw new Error('获取鉴权信息失败:' + authResponse.statusText);
             }
@@ -3402,14 +3413,14 @@ ${sentencesList}
           reader.onload = async () => {
             try {
               const base64Data = reader.result;
-              const res = await fetch(`${API_BASE_URL}/doc/parse`, {
+              const res = await fetchWithTimeout(`${API_BASE_URL}/doc/parse`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   file: base64Data,
                   filename: file.name
                 })
-              });
+              }, 120000);
               
               const result = await res.json();
               closeToast(loadingToast);
@@ -3458,7 +3469,7 @@ ${sentencesList}
               page_text: page.page_text
             }));
             
-            const response = await fetch(`${API_BASE_URL}/ai/generate-broadcast-text`, {
+            const response = await fetchWithTimeout(`${API_BASE_URL}/ai/generate-broadcast-text`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json'
@@ -3468,7 +3479,7 @@ ${sentencesList}
                 ppt_title: pptConfig.pptTitle,
                 total_pages: pptConfig.totalPages
               })
-            });
+            }, 600000);
             
             const result = await response.json();
             
@@ -3667,7 +3678,7 @@ ${sentencesList}
           showBackToTop,
           scrollToTop,
           // V3: AI 生成 PPT
-          pptSource, aiPPTTopic, aiPPTPageCount, aiPPTImageModel, aiPPTOutline, aiPPTOutlineDesc,
+          pptSource, aiPPTTopic, aiPPTPageCount, aiPPTImageModel, aiPPTOutline, aiPPTOutlineDesc, aiPPTThemeColor,
           aiPPTSelectedPage, aiPPTBackgrounds, aiPPTOutlineLoading,
           aiPPTBackgroundsLoading, aiPPTExportLoading, allBackgroundsReady,
           getPageTypeLabel, switchToAIGenerate, generatePPTOutline, generatePPTBackgrounds,
