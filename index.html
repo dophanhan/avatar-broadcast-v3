@@ -1088,25 +1088,28 @@
                 <span style="font-size:12px; color:#94a3b8; margin-left:8px;">模型：{{ aiPPTImageModel === 'doubao' ? '豆包 Seedream' : 'GPT Image 2' }}</span>
               </div>
 
-              <!-- 背景图预览 -->
+              <!-- 母版背景图预览 -->
               <div v-if="aiPPTBackgrounds && aiPPTBackgrounds.length > 0" style="margin-top:16px;">
-                <div style="font-size:14px; font-weight:600; color:#475569; margin-bottom:8px;">背景图预览（点击可放大）</div>
-                <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:12px;">
+                <div style="font-size:14px; font-weight:600; color:#475569; margin-bottom:8px;">母版背景图（封面 | 正文 | 尾页）</div>
+                <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:12px;">
                   <div v-for="(bg, idx) in aiPPTBackgrounds" :key="idx"
                     style="background:#fff; border-radius:8px; border:1px solid #e2e8f0; overflow:hidden; cursor:pointer;"
                     @click="openGeneratedImage(bg)">
+                    <div style="padding:6px 10px; font-size:12px; font-weight:600; color:#1e293b; text-align:center; background:#f1f5f9;">
+                      {{ bg.key === 'cover' ? '📔 封面' : bg.key === 'body' ? '📄 正文' : '📄 尾页' }}
+                    </div>
                     <div v-if="bg.status === 'loading'" style="padding:40px 20px; text-align:center; background:#f8fafc;">
                       <div style="width:40px; height:40px; margin:0 auto 8px; border:3px solid #e2e8f0; border-top-color:#3b82f6; border-radius:50%; animation:spin 0.8s linear infinite;"></div>
-                      <div style="font-size:12px; color:#94a3b8;">第{{ bg.page_number }}页生成中...</div>
+                      <div style="font-size:12px; color:#94a3b8;">生成中...</div>
                     </div>
                     <div v-else-if="bg.status === 'failed'" style="padding:40px 20px; text-align:center; background:#fef2f2;">
                       <div style="font-size:24px; margin-bottom:4px;">❌</div>
-                      <div style="font-size:12px; color:#ef4444;">第{{ bg.page_number }}页失败</div>
+                      <div style="font-size:12px; color:#ef4444;">生成失败</div>
                       <button @click.stop="regeneratePage(idx)" style="margin-top:6px; font-size:11px; color:#3b82f6; background:none; border:1px solid #3b82f6; border-radius:4px; padding:2px 8px; cursor:pointer;">重试</button>
                     </div>
-                    <img v-else :src="bg.image_url" style="width:100%; aspect-ratio:16/9; object-fit:cover;" :alt="'第'+bg.page_number+'页'" />
+                    <img v-else :src="bg.image_url" style="width:100%; aspect-ratio:16/9; object-fit:cover;" />
                     <div style="padding:6px 10px; font-size:12px; color:#64748b; display:flex; justify-content:space-between; align-items:center;">
-                      <span>第{{ bg.page_number }}页 {{ bg.status === 'done' ? '✅' : '' }}</span>
+                      <span>{{ bg.status === 'done' ? '✅' : '⏳' }}</span>
                       <div style="display:flex; gap:4px;">
                         <button @click.stop="openGeneratedImage(bg)" style="font-size:10px; color:#3b82f6; background:none; border:1px solid #3b82f6; border-radius:3px; padding:1px 6px; cursor:pointer;">🔍</button>
                         <button @click.stop="regeneratePage(idx)" style="font-size:10px; color:#f59e0b; background:none; border:1px solid #f59e0b; border-radius:3px; padding:1px 6px; cursor:pointer;">🔄</button>
@@ -1538,6 +1541,53 @@
         };
         const UPLOAD_LIMITS = { PPT_MAX_MB: 50, DOC_MAX_MB: 20 };
         const AI_TIMEOUT_MS = 600000;  // AI 接口超时 10 分钟
+
+        // ==================== 版式坐标字典 ====================
+        function getLayoutCoords(layout, page) {
+          const TITLE = '#1e293b', BODY = '#334155', CENTER = 'center', LEFT = 'left';
+          const el = [];
+          const t = page.title || '';
+          const st = page.subtitle || '';
+          const bullets = page.exact_content || [];
+          if (layout === 'cover') {
+            if (t) el.push({ id: 't', text: t, x: 10, y: 35, w: 80, h: 22, fontSize: 54, color: '#ffffff', bold: true, align: CENTER });
+            if (st) el.push({ id: 's', text: st, x: 10, y: 60, w: 80, h: 8, fontSize: 26, color: 'rgba(255,255,255,0.85)', bold: false, align: CENTER });
+          } else if (layout === 'ending') {
+            if (t) el.push({ id: 't', text: t, x: 10, y: 40, w: 80, h: 15, fontSize: 40, color: '#ffffff', bold: true, align: CENTER });
+            if (st) el.push({ id: 's', text: st, x: 10, y: 57, w: 80, h: 8, fontSize: 24, color: 'rgba(255,255,255,0.8)', bold: false, align: CENTER });
+          } else if (layout === 'toc') {
+            if (t) el.push({ id: 't', text: t, x: 8, y: 8, w: 84, h: 10, fontSize: 36, color: TITLE, bold: true, align: CENTER });
+            bullets.forEach((b, i) => { el.push({ id: 'b_'+i, text: b, x: 15, y: 22 + i*10, w: 70, h: 8, fontSize: 20, color: BODY, bold: false, align: LEFT }); });
+          } else if (layout === 'title_only') {
+            if (t) el.push({ id: 't', text: t, x: 10, y: 38, w: 80, h: 15, fontSize: 42, color: TITLE, bold: true, align: CENTER });
+            if (st) el.push({ id: 's', text: st, x: 10, y: 55, w: 80, h: 8, fontSize: 22, color: '#64748b', bold: false, align: CENTER });
+          } else if (layout === 'text_left_chart_right') {
+            if (t) el.push({ id: 't', text: t, x: 5, y: 6, w: 90, h: 10, fontSize: 32, color: TITLE, bold: true, align: LEFT });
+            bullets.forEach((b, i) => { el.push({ id: 'b_'+i, text: '• ' + b, x: 5, y: 20 + i*11, w: 42, h: 10, fontSize: 20, color: BODY, bold: false, align: LEFT }); });
+          } else if (layout === 'comparison') {
+            if (t) el.push({ id: 't', text: t, x: 5, y: 6, w: 90, h: 10, fontSize: 32, color: TITLE, bold: true, align: CENTER });
+            const left = bullets.slice(0, Math.ceil(bullets.length/2));
+            const right = bullets.slice(Math.ceil(bullets.length/2));
+            left.forEach((b,i) => el.push({ id: 'l_'+i, text: '• ' + b, x: 3, y: 20 + i*11, w: 44, h: 10, fontSize: 20, color: BODY, bold: false, align: LEFT }));
+            right.forEach((b,i) => el.push({ id: 'r_'+i, text: '• ' + b, x: 53, y: 20 + i*11, w: 44, h: 10, fontSize: 20, color: BODY, bold: false, align: LEFT }));
+          } else if (layout === 'three_columns') {
+            if (t) el.push({ id: 't', text: t, x: 5, y: 6, w: 90, h: 10, fontSize: 32, color: TITLE, bold: true, align: CENTER });
+            bullets.slice(0,3).forEach((b,i) => { el.push({ id: 'c_'+i, text: b, x: 3 + i*32, y: 22, w: 30, h: 65, fontSize: 20, color: BODY, bold: false, align: LEFT }); });
+          } else if (layout === 'four_grid') {
+            if (t) el.push({ id: 't', text: t, x: 5, y: 6, w: 90, h: 10, fontSize: 32, color: TITLE, bold: true, align: CENTER });
+            bullets.slice(0,4).forEach((b,i) => { const col=i%2,row=Math.floor(i/2); el.push({ id: 'g_'+i, text: b, x: 3+col*48, y: 20+row*35, w: 46, h: 30, fontSize: 18, color: BODY, bold: false, align: LEFT }); });
+          } else if (layout === 'timeline') {
+            if (t) el.push({ id: 't', text: t, x: 5, y: 6, w: 90, h: 10, fontSize: 32, color: TITLE, bold: true, align: CENTER });
+            bullets.slice(0,5).forEach((b,i) => { el.push({ id: 't_'+i, text: b, x: 10, y: 20 + i*14, w: 80, h: 12, fontSize: 20, color: BODY, bold: false, align: LEFT }); });
+          } else if (layout === 'data_focus') {
+            if (t) el.push({ id: 't', text: t, x: 5, y: 6, w: 90, h: 10, fontSize: 32, color: TITLE, bold: true, align: CENTER });
+            bullets.slice(0,3).forEach((b,i) => { el.push({ id: 'd_'+i, text: b, x: 10, y: 22 + i*22, w: 80, h: 18, fontSize: 24, color: TITLE, bold: true, align: LEFT }); });
+          } else {
+            if (t) el.push({ id: 't', text: t, x: 6, y: 8, w: 88, h: 10, fontSize: 34, color: TITLE, bold: true, align: LEFT });
+            bullets.forEach((b,i) => { el.push({ id: 'b_'+i, text: '• ' + b, x: 6, y: 22 + i*12, w: 88, h: 10, fontSize: 20, color: BODY, bold: false, align: LEFT }); });
+          }
+          return el;
+        }
         // PPT 配置核心状态
         const pptCollapseOpen = ref(true);
         const pptConfig = reactive({
@@ -1591,6 +1641,7 @@
         const aiPPTImageModel = ref('doubao'); // 'doubao' | 'gpt-image-2'
         const aiPPTOutline = ref(null);
         const aiPPTSelectedPage = ref(null);
+        const aiPPTOutlineDesc = ref(null);  // { cover_desc, body_desc, ending_desc }
         const aiPPTBackgrounds = ref([]);
         const aiPPTOutlineLoading = ref(false);
         const aiPPTBackgroundsLoading = ref(false);
@@ -1726,25 +1777,19 @@
             });
             const data = await resp.json();
             if (data.code !== 0) throw new Error(data.msg);
-            // 自动为每页生成 elements 数组（V3 排版引擎基底）
+            // 使用版式坐标字典自动生成 elements
             const pages = data.data.pages;
-            pages.forEach((page, idx) => {
+            pages.forEach(page => {
               if (!page.elements) {
-                const elements = [];
-                const layout = page.layout_style;
-                if (layout === 'cover' || layout === 'ending') {
-                  if (page.title) elements.push({ id: `t_${idx}`, text: page.title, x: 10, y: 38, w: 80, h: 20, fontSize: 50, color: '#1e293b', bold: true, align: 'center' });
-                  if (page.subtitle) elements.push({ id: `s_${idx}`, text: page.subtitle, x: 10, y: 58, w: 80, h: 10, fontSize: 26, color: '#64748b', bold: false, align: 'center' });
-                } else {
-                  if (page.title) elements.push({ id: `t_${idx}`, text: page.title, x: 5, y: 5, w: 90, h: 12, fontSize: 36, color: '#1e293b', bold: true, align: 'left' });
-                  if (page.exact_content && page.exact_content.length > 0) {
-                    const contentText = page.exact_content.map(c => '• ' + c).join('\n');
-                    elements.push({ id: `c_${idx}`, text: contentText, x: 5, y: 20, w: 90, h: 70, fontSize: 22, color: '#334155', bold: false, align: 'left' });
-                  }
-                }
-                page.elements = elements;
+                page.elements = getLayoutCoords(page.layout_style || 'content', page);
               }
             });
+            // 保存 cover_desc / body_desc / ending_desc 供背景生成用
+            aiPPTOutlineDesc.value = {
+              cover_desc: data.data.cover_desc || '',
+              body_desc: data.data.body_desc || '',
+              ending_desc: data.data.ending_desc || ''
+            };
             aiPPTOutline.value = data.data;
             aiPPTSelectedPage.value = 0;
             addLog(`✅ PPT 大纲生成成功，共 ${pages.length} 页`, 'success');
@@ -1760,39 +1805,41 @@
         async function generatePPTBackgrounds() {
           if (!aiPPTOutline.value || !aiPPTOutline.value.pages) return;
           aiPPTBackgroundsLoading.value = true;
-          const pages = aiPPTOutline.value.pages;
-          // 初始化所有页为 loading 状态
-          aiPPTBackgrounds.value = pages.map(p => ({
-            page_number: p.page_number,
-            image_url: null,
-            status: 'loading'
-          }));
-          addLog(`🎨 开始生成 ${pages.length} 页背景图（${aiPPTImageModel.value}）`, 'info');
+          const desc = aiPPTOutlineDesc.value || {};
+          addLog('🎨 开始生成 3 张母版背景图（封面+正文+尾页）', 'info');
+          // 初始化 3 张为 loading
+          aiPPTBackgrounds.value = [
+            { key: 'cover', page_number: 0, image_url: null, status: 'loading' },
+            { key: 'body', page_number: 0, image_url: null, status: 'loading' },
+            { key: 'ending', page_number: 0, image_url: null, status: 'loading' }
+          ];
 
-          // 分批次请求后端（后端内部 3 页并发）
           try {
             const resp = await fetchWithTimeout(`${API_BASE_URL}/ai/generate-ppt-backgrounds`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                pages: pages,
+                cover_desc: desc.cover_desc || '',
+                body_desc: desc.body_desc || '',
+                ending_desc: desc.ending_desc || '',
                 model: aiPPTImageModel.value
               })
             });
             const data = await resp.json();
             if (data.code !== 0) throw new Error(data.msg);
 
-            // 更新每页状态
-            for (const pg of data.data.pages) {
-              const idx = aiPPTBackgrounds.value.findIndex(bg => bg.page_number === pg.page_number);
+            // 更新 3 张状态
+            const results = data.data;
+            for (const [key, val] of Object.entries(results || {})) {
+              const idx = aiPPTBackgrounds.value.findIndex(bg => bg.key === key);
               if (idx >= 0) {
-                aiPPTBackgrounds.value[idx] = pg;
+                aiPPTBackgrounds.value[idx] = { key, page_number: 0, image_url: val.image_url, status: val.status || 'failed', error: val.error || '' };
               }
             }
-            const doneCount = aiPPTBackgrounds.value.filter(bg => bg.status === 'done').length;
-            const failCount = aiPPTBackgrounds.value.filter(bg => bg.status === 'failed').length;
-            addLog(`✅ 背景图生成完成：${doneCount} 成功，${failCount} 失败`, failCount > 0 ? 'warn' : 'success');
-            showToast(`背景图生成完成：${doneCount}/${pages.length} 成功`, failCount > 0 ? 'warn' : 'success');
+            const done = aiPPTBackgrounds.value.filter(bg => bg.status === 'done').length;
+            const fail = aiPPTBackgrounds.value.filter(bg => bg.status === 'failed').length;
+            addLog(`✅ 母版背景：${done} 成功，${fail} 失败`, fail > 0 ? 'warn' : 'success');
+            showToast(`背景图：${done}/3 成功`, fail > 0 ? 'warn' : 'success');
           } catch (e) {
             addLog(`❌ 背景图生成失败: ${e.message}`, 'error');
             showToast(`背景图生成失败: ${e.message}`, 'error');
@@ -1866,25 +1913,35 @@
 
         async function useGeneratedPPTForBroadcast() {
           addLog('🎬 使用 AI 生成的 PPT 进行播报...', 'info');
-          const donePages = aiPPTBackgrounds.value.filter(bg => bg.status === 'done');
+          // 找到 3 张母版图
+          const bgMap = {};
+          aiPPTBackgrounds.value.forEach(bg => { if (bg.status === 'done') bgMap[bg.key] = bg.image_url; });
+          if (!bgMap.body && !bgMap.cover) { showToast('请先生成背景图', 'error'); return; }
           
-          // 构建带 elements 的完整页面数据（V3 排版引擎产物）
-          const pageData = donePages.map(bg => {
-            const outline = aiPPTOutline.value.pages.find(p => p.page_number === bg.page_number) || {};
+          const pages = aiPPTOutline.value.pages || [];
+          const pageData = pages.map(p => {
             const img = new Image();
             img.crossOrigin = 'anonymous';
-            img.src = bg.image_url;
+            // 封面用 cover 背景，尾页用 ending 背景，正文用 body 背景
+            let bgUrl = bgMap.body || bgMap.cover || '';
+            if (p.layout_style === 'cover') bgUrl = bgMap.cover || bgMap.body || '';
+            else if (p.layout_style === 'ending') bgUrl = bgMap.ending || bgMap.body || '';
+            img.src = bgUrl;
+            
+            // 确保每页 elements 已装配
+            if (!p.elements || p.elements.length === 0) {
+              p.elements = getLayoutCoords(p.layout_style || 'content', p);
+            }
             return {
-              page_num: bg.page_number,
-              page_title: outline.title || outline.subtitle || '',
-              page_text: [outline.title, ...(outline.exact_content || [])].filter(Boolean).join('；'),
-              page_image: img,  // ⬅️ Image 对象，compositeFrame 需要
-              page_image_url: bg.image_url,
-              elements: outline.elements || []  // ⬅️ V3 文字层，compositeFrame 按坐标绘制
+              page_num: p.page_number,
+              page_title: p.title || p.subtitle || '',
+              page_text: [p.title, ...(p.exact_content || [])].filter(Boolean).join('；'),
+              page_image: img,
+              page_image_url: bgUrl,
+              elements: p.elements || []
             };
           });
           
-          // 设置 pptConfig（对齐 upload 路径的数据结构）
           pptConfig.imported = true;
           pptConfig.totalPages = pageData.length;
           pptConfig.pages = pageData;
@@ -1892,23 +1949,16 @@
           pptConfig.pptTitle = aiPPTTopic.value || 'AI生成的PPT';
           pptConfig.isLocal = false;
           
-          // 并行：图片预加载 + 翻页节点生成（单张失败不阻塞整体）
           const imagePromises = pageData.map(p => new Promise((resolve) => {
             p.page_image.onload = () => resolve(p.page_image);
-            p.page_image.onerror = () => {
-              addLog(`⚠️ 第${p.page_num}页图片加载失败，将使用占位`, 'warn');
-              resolve(null);
-            };
+            p.page_image.onerror = () => { addLog('⚠️ 图片加载失败', 'warn'); resolve(null); };
             if (p.page_image.complete) resolve(p.page_image);
           }));
           const turningPromise = generateTurningNodes(false, true);
           
           try {
-            await Promise.all([
-              Promise.all(imagePromises),
-              turningPromise
-            ]);
-            addLog(`✅ AI 生成 PPT 播报准备完成（${pageData.length} 页图片 + 翻页节点）`, 'success');
+            await Promise.all([Promise.all(imagePromises), turningPromise]);
+            addLog(`✅ AI 生成 PPT 播报准备完成（${pageData.length} 页）`, 'success');
             showToast('播报准备完成，请确认翻页规则', 'success');
             step.value = 3;
           } catch (e) {
@@ -3593,7 +3643,7 @@ ${sentencesList}
           showBackToTop,
           scrollToTop,
           // V3: AI 生成 PPT
-          pptSource, aiPPTTopic, aiPPTPageCount, aiPPTImageModel, aiPPTOutline,
+          pptSource, aiPPTTopic, aiPPTPageCount, aiPPTImageModel, aiPPTOutline, aiPPTOutlineDesc,
           aiPPTSelectedPage, aiPPTBackgrounds, aiPPTOutlineLoading,
           aiPPTBackgroundsLoading, aiPPTExportLoading, allBackgroundsReady,
           getPageTypeLabel, switchToAIGenerate, generatePPTOutline, generatePPTBackgrounds,
