@@ -862,8 +862,8 @@
       </div>
       <!-- 4. 全宽配置区 -->
       <div class="config-section">
-        <!-- 4.1 播报文本（Step 1 — 移到最前） -->
-        <div class="panel config-panel">
+        <!-- 4.1 播报文本（纯数字人模式 — Step 1） -->
+        <div class="panel config-panel" v-if="!usePPT">
           <h2>📝 Step 1: 播报文本</h2>
           <div class="form-group">
             <div class="text-input-header">
@@ -925,6 +925,19 @@
         <!-- 4.3 PPT 导入配置（仅 PPT 模式 — Step 2） -->
         <div class="panel config-panel" v-if="usePPT">
           <h2>📑 Step 2: PPT 导入配置</h2>
+
+          <!-- PPT 模式下先输入文案 -->
+          <div class="form-group" style="margin-bottom:20px;">
+            <label>📝 播报文案</label>
+            <textarea 
+              v-model="config.text" 
+              placeholder="请输入要播报的文本内容..." 
+              @input="clearCache"
+              style="height:150px;"
+            ></textarea>
+            <div style="text-align:right;margin-top:5px;color:#666;font-size:12px;">共 {{ currentSentences.length }} 句</div>
+          </div>
+
           <!-- V3: PPT 来源选择 -->
           <div class="ppt-source-switch" v-if="usePPT" style="margin-bottom:16px; display:flex; gap:12px; align-items:center;">
             <span style="font-size:14px; color:#64748b; font-weight:600;">PPT 来源：</span>
