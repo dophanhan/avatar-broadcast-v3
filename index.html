@@ -811,7 +811,7 @@
 
             <!-- 核心按钮组 -->
             <div class="core-btn-group">
-              <button class="btn btn-primary" :class="{'btn-pulse': !isBroadcasting && pageTurningConfirmed}" @click="startBroadcast" :disabled="isBroadcasting || step < 5 || !config.text || (usePPT && !pageTurningConfirmed)">
+              <button class="btn btn-primary" :class="{'btn-pulse': !isBroadcasting && pageTurningConfirmed}" @click="startBroadcast" :disabled="isBroadcasting || step < 4 || !config.text || (usePPT && !pageTurningConfirmed)">
                 🎙️ {{ isBroadcasting ? '播报中...' : '开始播报' }}
               </button>
               <button class="btn btn-danger" @click="stopBroadcast" :disabled="!isBroadcasting">⏹️ 停止播报</button>
@@ -848,24 +848,55 @@
       <!-- 3. 步骤导航条 -->
       <div class="process-nav">
         <div class="process-step" :class="{ active: step >= 1, completed: step > 1 }">
-          <span class="step-num">1</span><span class="step-text">基础配置</span>
+          <span class="step-num">1</span><span class="step-text">文案输入</span>
         </div>
         <div class="process-step" :class="{ active: step >= 2, completed: step > 2, hidden: !usePPT }">
           <span class="step-num">2</span><span class="step-text">PPT 导入</span>
         </div>
-        <div class="process-step" :class="{ active: step >= 3, completed: step > 3 }">
-          <span class="step-num">3</span><span class="step-text">文案输入</span>
+        <div class="process-step" :class="{ active: step >= 3, completed: step > 3, hidden: !usePPT }">
+          <span class="step-num">3</span><span class="step-text">翻页节点</span>
         </div>
-        <div class="process-step" :class="{ active: step >= 4, completed: step > 4, hidden: !usePPT }">
-          <span class="step-num">4</span><span class="step-text">翻页节点</span>
-        </div>
-        <div class="process-step" :class="{ active: step >= 5, completed: step > 5 }">
-          <span class="step-num">5</span><span class="step-text">播报导出</span>
+        <div class="process-step" :class="{ active: step >= 4, completed: step > 4 }">
+          <span class="step-num">4</span><span class="step-text">播报导出</span>
         </div>
       </div>
       <!-- 4. 全宽配置区 -->
       <div class="config-section">
-        <!-- 4.1 基础配置 -->
+        <!-- 4.1 播报文本（Step 1 — 移到最前） -->
+        <div class="panel config-panel">
+          <h2>📝 Step 1: 播报文本</h2>
+          <div class="form-group">
+            <div class="text-input-header">
+              <label style="display:flex; align-items:center;">
+                播报文案
+                <span class="format-tip-small">支持导入文档 (推荐 .docx / .pdf / .txt，不支持 .doc)</span>
+              </label>
+              <div style="display:flex; gap: 8px;">
+                <input type="file" ref="docFileInput" accept=".txt,.pdf,.docx" style="display:none" @change="handleDocUpload">
+                
+                <button class="btn-ai-generate" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); color: #333;" @click="$refs.docFileInput.click()" :disabled="isParsingDoc">
+                  <span v-if="!isParsingDoc">📄 导入文档</span>
+                  <span v-else>⏳ 解析中...</span>
+                </button>
+
+                <button class="btn-ai-generate" :disabled="!canAIGenerate" @click="handleAIGenerate" :title="canAIGenerate ? '根据 PPT 内容自动生成播报文本' : '请先导入 PPT 文件'">
+                  <span v-if="!aiGenerating">✨ AI 生成</span>
+                  <span v-else>🔄 生成中...</span>
+                </button>
+              </div>
+            </div>
+            <textarea 
+              v-model="config.text" 
+              placeholder="请输入要播报的文本内容，或点击 AI 生成按钮自动创建..." 
+              @input="clearCache"
+              :disabled="aiGenerating"
+              style="height:200px;"
+            ></textarea>
+            <div v-if="aiGenerateError" class="error-tip">{{ aiGenerateError }}</div>
+            <div style="text-align:right;margin-top:5px;color:#666;font-size:12px;">共 {{ currentSentences.length }} 句</div>
+          </div>
+        </div>
+        <!-- 4.2 基础配置 -->
         <div class="panel config-panel">
           <h2>⚙️ 基础配置</h2>
           <div class="config-grid">
@@ -891,9 +922,9 @@
             </div>
           </div>
         </div>
-        <!-- 4.3 PPT 导入配置（仅 PPT 模式） -->
+        <!-- 4.3 PPT 导入配置（仅 PPT 模式 — Step 2） -->
         <div class="panel config-panel" v-if="usePPT">
-          <h2>📑 PPT 导入配置</h2>
+          <h2>📑 Step 2: PPT 导入配置</h2>
           <!-- V3: PPT 来源选择 -->
           <div class="ppt-source-switch" v-if="usePPT" style="margin-bottom:16px; display:flex; gap:12px; align-items:center;">
             <span style="font-size:14px; color:#64748b; font-weight:600;">PPT 来源：</span>
@@ -941,8 +972,7 @@
 
               <!-- Step 1: 生成大纲 -->
               <div style="margin-bottom:16px;">
-                <div style="font-size:14px; font-weight:600; color:#475569; margin-bottom:8px;">Step 1: 主题与页数</div>
-                <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
                   <input v-model="aiPPTTopic" placeholder="PPT主题（如：2025年度工作总结）" 
                     style="flex:1; min-width:200px; padding:10px 14px; border:1px solid #cbd5e1; border-radius:8px; font-size:14px;" />
                   <select v-model.number="aiPPTPageCount" 
@@ -963,12 +993,12 @@
                     {{ aiPPTOutlineLoading ? '⏳ 生成中...' : '🤖 生成 PPT 大纲' }}
                   </button>
                 </div>
-                <div v-if="!config.text.trim()" style="font-size:12px; color:#f59e0b; margin-top:6px;">⚠️ 请先在左侧"播报文本"区域输入文案内容</div>
+                <div v-if="!config.text.trim()" style="font-size:12px; color:#f59e0b; margin-top:6px;">⚠️ 请先在 Step 1 输入文案内容</div>
               </div>
 
-              <!-- Step 2: 大纲预览与编辑 -->
+              <!-- 大纲预览与编辑 -->
               <div v-if="aiPPTOutline && aiPPTOutline.pages && aiPPTOutline.pages.length > 0" style="margin-bottom:16px;">
-                <div style="font-size:14px; font-weight:600; color:#475569; margin-bottom:8px;">Step 2: 预览与编辑大纲</div>
+                <div style="font-size:14px; font-weight:600; color:#475569; margin-bottom:8px;">大纲预览与编辑
                 <div style="display:flex; gap:16px; flex-wrap:wrap;">
                   <!-- 页面列表 -->
                   <div style="flex:0 0 260px; max-height:420px; overflow-y:auto; background:#fff; border-radius:8px; border:1px solid #e2e8f0;">
@@ -1019,7 +1049,7 @@
                 </div>
               </div>
 
-              <!-- Step 3: 生成背景图 -->
+              <!-- 生成背景图 -->
               <div v-if="aiPPTOutline && aiPPTOutline.pages && aiPPTOutline.pages.length > 0" style="margin-bottom:12px;">
                 <button class="btn btn-success" @click="generatePPTBackgrounds()" :disabled="aiPPTBackgroundsLoading"
                   style="padding:10px 24px; border-radius:8px; font-size:14px; background:linear-gradient(135deg,#667eea,#764ba2); color:#fff; border:none;">
@@ -1028,9 +1058,9 @@
                 <span style="font-size:12px; color:#94a3b8; margin-left:8px;">模型：{{ aiPPTImageModel === 'doubao' ? '豆包 Seedream' : 'GPT Image 2' }}</span>
               </div>
 
-              <!-- Step 4: 背景图预览 -->
+              <!-- 背景图预览 -->
               <div v-if="aiPPTBackgrounds && aiPPTBackgrounds.length > 0" style="margin-top:16px;">
-                <div style="font-size:14px; font-weight:600; color:#475569; margin-bottom:8px;">Step 3: 背景图预览（点击可放大）</div>
+                <div style="font-size:14px; font-weight:600; color:#475569; margin-bottom:8px;">背景图预览（点击可放大）</div>
                 <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:12px;">
                   <div v-for="(bg, idx) in aiPPTBackgrounds" :key="idx"
                     style="background:#fff; border-radius:8px; border:1px solid #e2e8f0; overflow:hidden; cursor:pointer;"
@@ -1051,7 +1081,7 @@
                   </div>
                 </div>
                 
-                <!-- Step 5: 导出 PPTX -->
+                <!-- 导出 PPTX -->
                 <div style="margin-top:16px; display:flex; gap:12px; flex-wrap:wrap;">
                   <button class="btn" @click="exportPPTX()" :disabled="aiPPTExportLoading"
                     style="padding:12px 28px; border-radius:10px; font-size:15px; font-weight:600; background:linear-gradient(135deg,#10b981,#059669); color:#fff; border:none;">
@@ -1141,38 +1171,60 @@
             </select>
           </div>
         </div>
-        <!-- 4.4 播报文本 -->
-        <div class="panel config-panel">
-          <h2>📝 播报文本</h2>
-          <div class="form-group">
-            <div class="text-input-header">
-              <label style="display:flex; align-items:center;">
-                播报文案
-                <span class="format-tip-small">支持导入文档 (推荐 .docx / .pdf / .txt，不支持 .doc)</span>
-              </label>
-              <div style="display:flex; gap: 8px;">
-                <input type="file" ref="docFileInput" accept=".txt,.pdf,.docx" style="display:none" @change="handleDocUpload">
-                
-                <button class="btn-ai-generate" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); color: #333;" @click="$refs.docFileInput.click()" :disabled="isParsingDoc">
-                  <span v-if="!isParsingDoc">📄 导入文档</span>
-                  <span v-else>⏳ 解析中...</span>
-                </button>
 
-                <button class="btn-ai-generate" :disabled="!canAIGenerate" @click="handleAIGenerate" :title="canAIGenerate ? '根据 PPT 内容自动生成播报文本' : '请先导入 PPT 文件'">
-                  <span v-if="!aiGenerating">✨ AI 生成</span>
-                  <span v-else>🔄 生成中...</span>
-                </button>
+        <!-- 4.4 翻页节点（仅 PPT 模式且已导入后显示 — Step 3） -->
+        <div class="panel config-panel" v-if="usePPT && pptConfig.imported">
+          <h2>📑 Step 3: 翻页节点同步</h2>
+          <div class="form-group">
+            <button class="btn btn-primary" :class="{'btn-pulse': config.text && pptConfig.imported && pageTurningNodes.length === 0}" style="width:100%;" @click="generateTurningNodes" :disabled="!config.text || !pptConfig.imported">
+              🤖 生成智能翻页节点
+            </button>
+            <div v-if="!config.text" class="status-tip warn" style="margin-top:8px;">
+              ⚠️ 请先填写播报文本，再生成翻页节点
+            </div>
+          </div>
+          <div v-if="pageTurningNodes.length > 0" class="form-group">
+            <div class="dual-column-panel">
+              <div class="column-box">
+                <div class="column-title">📑 PPT 页面列表</div>
+                <div class="ppt-thumb-item" :class="{ active: currentEditPage === item.page_num }" v-for="item in pptConfig.pages" :key="item.page_num" @click="currentEditPage = item.page_num">
+                  <div class="ppt-thumb-title">第{{ item.page_num }}页 | {{ item.page_title }}</div>
+                </div>
+              </div>
+              <div class="column-box">
+                <div class="column-title">📝 绑定的播报句子</div>
+                <div class="sentence-item" 
+                     :class="{ bound: isSentenceBound(index), highlight: isSentenceHighlight(index) }" 
+                     v-for="(sentence, index) in currentSentences" 
+                     :key="index" 
+                     :data-index="'句' + (index+1)"
+                     draggable="true" 
+                     @dragstart="dragSentence(index)" 
+                     @drop="dropSentence" 
+                     @dragover.prevent>
+                  {{ sentence }}
+                </div>
               </div>
             </div>
-            <textarea 
-              v-model="config.text" 
-              placeholder="请输入要播报的文本内容，或点击 AI 生成按钮自动创建..." 
-              @input="clearCache"
-              :disabled="aiGenerating"
-              style="height:200px;"
-            ></textarea>
-            <div v-if="aiGenerateError" class="error-tip">{{ aiGenerateError }}</div>
-            <div style="text-align:right;margin-top:5px;color:#666;font-size:12px;">共 {{ currentSentences.length }} 句</div>
+            <div class="adjust-row">
+              <label>起始句:</label>
+              <select v-model="currentNode.start_sentence_index">
+                <option v-for="(sentence, index) in currentSentences" :key="index" :value="index">句{{ index+1 }}</option>
+              </select>
+              <label>结束句:</label>
+              <select v-model="currentNode.end_sentence_index">
+                <option v-for="(sentence, index) in currentSentences" :key="index" :value="index">句{{ index+1 }}</option>
+              </select>
+            </div>
+            <div class="adjust-row">
+              <button class="btn btn-small btn-primary" @click="adjustPageTurn(-1)">提前 1 句翻页</button>
+              <button class="btn btn-small btn-primary" @click="adjustPageTurn(1)">延后 1 句翻页</button>
+              <button class="btn btn-small btn-warning" @click="resetTurningNodes">一键重置</button>
+            </div>
+            <div class="adjust-row" style="justify-content:flex-end;margin-top:20px;">
+              <button class="btn btn-default" @click="cancelTurningEdit">取消</button>
+              <button class="btn btn-success" :class="{'btn-pulse': pageTurningNodes.length > 0 && !pageTurningConfirmed}" @click="confirmTurningRules">✅ 确认翻页规则</button>
+            </div>
           </div>
         </div>
         <!-- 4.5 系统日志 -->
@@ -1595,7 +1647,6 @@
             }
             reImportPpt();
             step.value = 3;
-            showToast('已切换到纯播报模式（竖屏）', 'success', 2000);
           }
           console.log('当前步骤:', step.value);
           if (enablePPT) {
@@ -1828,7 +1879,7 @@
             ]);
             addLog(`✅ AI 生成 PPT 播报准备完成（${pageData.length} 页图片 + 翻页节点）`, 'success');
             showToast('播报准备完成，请确认翻页规则', 'success');
-            step.value = 4;
+            step.value = 3;
           } catch (e) {
             addLog(`❌ 播报准备失败: ${e.message}`, 'error');
             showToast(`播报准备失败: ${e.message}`, 'error');
@@ -2306,7 +2357,7 @@ ${sentencesList}
             if (!silent) showToast(`翻页节点生成成功，共${pageTurningNodes.value.length}个节点`, 'success');
             // 【修复 2】缓存当前文本，用于下次播报时检测变化
             localStorage.setItem('lastTextForTurningNodes', config.text);
-            step.value = 5;
+            step.value = 4;
             if (!isReset) { currentEditPage.value = 1; }
           } catch (e) {
             addLog(`❌ 翻页节点生成失败:${e.message}`, 'error');
