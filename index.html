@@ -1028,7 +1028,7 @@
 
               <!-- 大纲预览与编辑 -->
               <div v-if="aiPPTOutline && aiPPTOutline.pages && aiPPTOutline.pages.length > 0" style="margin-bottom:16px;">
-                <div style="font-size:14px; font-weight:600; color:#475569; margin-bottom:8px;">大纲预览与编辑
+                <div style="font-size:14px; font-weight:600; color:#475569; margin-bottom:8px;">大纲预览与编辑</div>
                 <div style="display:flex; gap:16px; flex-wrap:wrap;">
                   <!-- 页面列表 -->
                   <div style="flex:0 0 260px; max-height:420px; overflow-y:auto; background:#fff; border-radius:8px; border:1px solid #e2e8f0;">
@@ -1850,23 +1850,32 @@
 
         async function regeneratePage(idx) {
           aiPPTBackgrounds.value[idx].status = 'loading';
-          const page = aiPPTOutline.value.pages[idx];
+          const desc = aiPPTOutlineDesc.value || {};
+          const key = aiPPTBackgrounds.value[idx].key;
+          const desc_map = { cover: desc.cover_desc || '', body: desc.body_desc || '', ending: desc.ending_desc || '' };
           try {
             const resp = await fetchWithTimeout(`${API_BASE_URL}/ai/generate-ppt-backgrounds`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                pages: [page],
+                cover_desc: key === 'cover' ? (desc_map.cover || 'cover slide background, no text') : '',
+                body_desc: key === 'body' ? (desc_map.body || 'clean body slide background, no text') : '',
+                ending_desc: key === 'ending' ? (desc_map.ending || 'ending slide background, no text') : '',
                 model: aiPPTImageModel.value
               })
             });
             const data = await resp.json();
             if (data.code !== 0) throw new Error(data.msg);
-            aiPPTBackgrounds.value[idx] = data.data.pages[0];
-            addLog(`✅ 第${page.page_number}页重新生成成功`, 'success');
+            const val = (data.data || {})[key];
+            if (val) {
+              aiPPTBackgrounds.value[idx] = { key, page_number: 0, image_url: val.image_url, status: val.status || 'failed', error: val.error || '' };
+              addLog(`✅ ${key} 母版重生成成功`, 'success');
+            } else {
+              aiPPTBackgrounds.value[idx] = { key, page_number: 0, image_url: null, status: 'failed', error: 'no result' };
+            }
           } catch (e) {
-            aiPPTBackgrounds.value[idx] = { page_number: page.page_number, image_url: null, status: 'failed', error: e.message };
-            addLog(`❌ 第${page.page_number}页重新生成失败: ${e.message}`, 'error');
+            aiPPTBackgrounds.value[idx].status = 'failed';
+            addLog(`❌ ${key} 重生成失败: ${e.message}`, 'error');
           }
         }
 
@@ -1887,14 +1896,23 @@
           aiPPTExportLoading.value = true;
           addLog('📦 正在生成 PPTX 文件...', 'info');
           try {
+            // 获取母版背景 URL
+            const bgMap = {};
+            aiPPTBackgrounds.value.forEach(bg => { if (bg.status === 'done') bgMap[bg.key] = bg.image_url; });
+            const pages = (aiPPTOutline.value.pages || []).map(p => {
+              let bgUrl = bgMap.body || bgMap.cover || '';
+              if (p.layout_style === 'cover') bgUrl = bgMap.cover || bgMap.body || '';
+              else if (p.layout_style === 'ending') bgUrl = bgMap.ending || bgMap.body || '';
+              if (!p.elements || p.elements.length === 0) {
+                p.elements = getLayoutCoords(p.layout_style || 'content', p);
+              }
+              return { ...p, image_url: bgUrl };
+            });
             const resp = await fetchWithTimeout(`${API_BASE_URL}/ppt/export-from-outline`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                pages: aiPPTBackgrounds.value.filter(bg => bg.status === 'done').map(bg => {
-                  const outline = aiPPTOutline.value.pages.find(p => p.page_number === bg.page_number);
-                  return { ...outline, image_url: bg.image_url };
-                }),
+                pages: pages,
                 title: aiPPTTopic.value || 'AI生成的PPT'
               })
             });
