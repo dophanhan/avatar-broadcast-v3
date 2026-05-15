@@ -1543,48 +1543,27 @@
         const AI_TIMEOUT_MS = 600000;  // AI 接口超时 10 分钟
 
         // ==================== 版式坐标字典 ====================
-        function getLayoutCoords(layout, page) {
-          const TITLE = '#1e293b', BODY = '#334155', CENTER = 'center', LEFT = 'left';
+        function getLayoutCoords(layout, page, themeColorOverride) {
+          const tc = themeColorOverride || aiPPTTopic.value || '#1e3a8a';
+          const BODY = '#334155', CENTER = 'center', LEFT = 'left';
           const el = [];
           const t = page.title || '';
           const st = page.subtitle || '';
           const bullets = page.exact_content || [];
           if (layout === 'cover') {
-            if (t) el.push({ id: 't', text: t, x: 10, y: 35, w: 80, h: 22, fontSize: 54, color: '#ffffff', bold: true, align: CENTER });
-            if (st) el.push({ id: 's', text: st, x: 10, y: 60, w: 80, h: 8, fontSize: 26, color: 'rgba(255,255,255,0.85)', bold: false, align: CENTER });
+            if (t) el.push({ id: 't', text: t, x: 10, y: 30, w: 80, h: 18, fontSize: 54, color: '#ffffff', bold: true, align: CENTER, shadow: true });
+            if (st) el.push({ id: 's', text: st, x: 10, y: 52, w: 80, h: 8, fontSize: 26, color: 'rgba(255,255,255,0.85)', bold: false, align: CENTER });
           } else if (layout === 'ending') {
-            if (t) el.push({ id: 't', text: t, x: 10, y: 40, w: 80, h: 15, fontSize: 40, color: '#ffffff', bold: true, align: CENTER });
-            if (st) el.push({ id: 's', text: st, x: 10, y: 57, w: 80, h: 8, fontSize: 24, color: 'rgba(255,255,255,0.8)', bold: false, align: CENTER });
-          } else if (layout === 'toc') {
-            if (t) el.push({ id: 't', text: t, x: 8, y: 8, w: 84, h: 10, fontSize: 36, color: TITLE, bold: true, align: CENTER });
-            bullets.forEach((b, i) => { el.push({ id: 'b_'+i, text: b, x: 15, y: 22 + i*10, w: 70, h: 8, fontSize: 20, color: BODY, bold: false, align: LEFT }); });
-          } else if (layout === 'title_only') {
-            if (t) el.push({ id: 't', text: t, x: 10, y: 38, w: 80, h: 15, fontSize: 42, color: TITLE, bold: true, align: CENTER });
-            if (st) el.push({ id: 's', text: st, x: 10, y: 55, w: 80, h: 8, fontSize: 22, color: '#64748b', bold: false, align: CENTER });
-          } else if (layout === 'text_left_chart_right') {
-            if (t) el.push({ id: 't', text: t, x: 5, y: 6, w: 90, h: 10, fontSize: 32, color: TITLE, bold: true, align: LEFT });
-            bullets.forEach((b, i) => { el.push({ id: 'b_'+i, text: '• ' + b, x: 5, y: 20 + i*11, w: 42, h: 10, fontSize: 20, color: BODY, bold: false, align: LEFT }); });
-          } else if (layout === 'comparison') {
-            if (t) el.push({ id: 't', text: t, x: 5, y: 6, w: 90, h: 10, fontSize: 32, color: TITLE, bold: true, align: CENTER });
-            const left = bullets.slice(0, Math.ceil(bullets.length/2));
-            const right = bullets.slice(Math.ceil(bullets.length/2));
-            left.forEach((b,i) => el.push({ id: 'l_'+i, text: '• ' + b, x: 3, y: 20 + i*11, w: 44, h: 10, fontSize: 20, color: BODY, bold: false, align: LEFT }));
-            right.forEach((b,i) => el.push({ id: 'r_'+i, text: '• ' + b, x: 53, y: 20 + i*11, w: 44, h: 10, fontSize: 20, color: BODY, bold: false, align: LEFT }));
-          } else if (layout === 'three_columns') {
-            if (t) el.push({ id: 't', text: t, x: 5, y: 6, w: 90, h: 10, fontSize: 32, color: TITLE, bold: true, align: CENTER });
-            bullets.slice(0,3).forEach((b,i) => { el.push({ id: 'c_'+i, text: b, x: 3 + i*32, y: 22, w: 30, h: 65, fontSize: 20, color: BODY, bold: false, align: LEFT }); });
-          } else if (layout === 'four_grid') {
-            if (t) el.push({ id: 't', text: t, x: 5, y: 6, w: 90, h: 10, fontSize: 32, color: TITLE, bold: true, align: CENTER });
-            bullets.slice(0,4).forEach((b,i) => { const col=i%2,row=Math.floor(i/2); el.push({ id: 'g_'+i, text: b, x: 3+col*48, y: 20+row*35, w: 46, h: 30, fontSize: 18, color: BODY, bold: false, align: LEFT }); });
-          } else if (layout === 'timeline') {
-            if (t) el.push({ id: 't', text: t, x: 5, y: 6, w: 90, h: 10, fontSize: 32, color: TITLE, bold: true, align: CENTER });
-            bullets.slice(0,5).forEach((b,i) => { el.push({ id: 't_'+i, text: b, x: 10, y: 20 + i*14, w: 80, h: 12, fontSize: 20, color: BODY, bold: false, align: LEFT }); });
-          } else if (layout === 'data_focus') {
-            if (t) el.push({ id: 't', text: t, x: 5, y: 6, w: 90, h: 10, fontSize: 32, color: TITLE, bold: true, align: CENTER });
-            bullets.slice(0,3).forEach((b,i) => { el.push({ id: 'd_'+i, text: b, x: 10, y: 22 + i*22, w: 80, h: 18, fontSize: 24, color: TITLE, bold: true, align: LEFT }); });
+            if (t) el.push({ id: 't', text: t, x: 10, y: 38, w: 80, h: 12, fontSize: 40, color: '#ffffff', bold: true, align: CENTER, shadow: true });
+            if (st) el.push({ id: 's', text: st, x: 10, y: 54, w: 80, h: 8, fontSize: 24, color: 'rgba(255,255,255,0.8)', bold: false, align: CENTER });
           } else {
-            if (t) el.push({ id: 't', text: t, x: 6, y: 8, w: 88, h: 10, fontSize: 34, color: TITLE, bold: true, align: LEFT });
-            bullets.forEach((b,i) => { el.push({ id: 'b_'+i, text: '• ' + b, x: 6, y: 22 + i*12, w: 88, h: 10, fontSize: 20, color: BODY, bold: false, align: LEFT }); });
+            // 正文页：标题(subtitle同样必填) + 副标题(承上启下) + 要点(hasBg)
+            if (t) el.push({ id: 't', text: t, x: 6, y: 6, w: 88, h: 10, fontSize: 36, color: tc, bold: true, align: LEFT, shadow: true });
+            if (st) el.push({ id: 's', text: st, x: 6, y: 17, w: 88, h: 6, fontSize: 22, color: '#64748b', bold: false, align: LEFT });
+            if (bullets.length > 0) {
+              const contentText = bullets.map(c => '• ' + c).join('\n');
+              el.push({ id: 'c', text: contentText, x: 6, y: 26, w: 88, h: 60, fontSize: 22, color: '#334155', bold: false, align: LEFT, hasBg: true });
+            }
           }
           return el;
         }
@@ -2664,12 +2643,38 @@ ${sentencesList}
                   ctx.drawImage(currentPageData.page_image, startX, startY, pptW, pptH);
                   ctx.restore();
                   
-                  // 2. 遍历 elements 绘制 V3 文字层（Pt→Px 换算：1Pt = 1.5Px）
+                  // 2. 遍历 elements 绘制 V3 文字层（Pt→Px 换算：1Pt = 1.5Px）—— 母版渲染引擎
                   if (currentPageData.elements && currentPageData.elements.length > 0) {
                     currentPageData.elements.forEach(el => {
                       const elX = startX + (el.x / 100) * pptW;
                       const elY = startY + (el.y / 100) * pptH;
                       const scaledFontSize = Math.floor(el.fontSize * 1.5);
+                      const bgW = (el.w / 100) * pptW + 40;
+                      const bgH = (el.h / 100) * pptH + 40;
+                      ctx.save();
+                      // 1. 半透明白色底色文本框 (hasBg)
+                      if (el.hasBg) {
+                        ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
+                        ctx.shadowColor = 'rgba(0, 0, 0, 0.08)';
+                        ctx.shadowBlur = 15;
+                        ctx.shadowOffsetY = 4;
+                        const rx = elX - 20, ry = elY - 20;
+                        if (ctx.roundRect) {
+                          ctx.beginPath(); ctx.roundRect(rx, ry, bgW, bgH, 12); ctx.fill();
+                        } else {
+                          ctx.fillRect(rx, ry, bgW, bgH);
+                        }
+                      }
+                      // 2. 标题文字阴影
+                      if (el.shadow) {
+                        ctx.shadowColor = 'rgba(0, 0, 0, 0.2)';
+                        ctx.shadowBlur = 6;
+                        ctx.shadowOffsetX = 2;
+                        ctx.shadowOffsetY = 2;
+                      } else {
+                        ctx.shadowColor = 'transparent';
+                      }
+                      // 3. 绘制多行文字
                       ctx.font = `${el.bold ? 'bold ' : ''}${scaledFontSize}px "Microsoft YaHei", sans-serif`;
                       ctx.fillStyle = el.color || '#000000';
                       ctx.textAlign = el.align || 'left';
@@ -2679,6 +2684,7 @@ ${sentencesList}
                       lines.forEach((line, i) => {
                         ctx.fillText(line, elX, elY + (i * lineHeight));
                       });
+                      ctx.restore();
                     });
                   }
                 }
