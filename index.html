@@ -555,6 +555,114 @@
       cursor: pointer;
     }
     .preview-close:hover { background: rgba(255,255,255,0.4); }
+    .ppt-preview-canvas {
+      max-width: 90vw;
+      max-height: 90vh;
+      width: min(90vw, 1280px);
+      aspect-ratio: 16 / 9;
+      background: #0f172a;
+      border-radius: 8px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    }
+    .editor-modal-mask {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(0,0,0,0.6);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 100000;
+    }
+    .editor-modal-box {
+      width: min(1180px, 96vw);
+      height: min(760px, 92vh);
+      background: #fff;
+      border-radius: 16px;
+      display: flex;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+    }
+    .editor-canvas-panel {
+      flex: 1;
+      background: #f8fafc;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+    .editor-canvas-stage {
+      position: relative;
+      width: 100%;
+      max-width: 720px;
+      aspect-ratio: 16 / 9;
+      background-size: cover;
+      background-position: center;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 12px 36px rgba(15, 23, 42, 0.18);
+      user-select: none;
+    }
+    .editor-inline-image {
+      position: absolute;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.18);
+      background: rgba(255,255,255,0.12);
+    }
+    .editor-inline-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .editor-element {
+      position: absolute;
+      padding: 10px 14px;
+      border-radius: 10px;
+      cursor: move;
+      white-space: pre-wrap;
+      line-height: 1.35;
+      min-width: 48px;
+    }
+    .editor-element.active {
+      outline: 2px solid #3b82f6;
+      box-shadow: 0 0 0 4px rgba(59,130,246,0.15);
+    }
+    .editor-side-panel {
+      width: 320px;
+      border-left: 1px solid #e2e8f0;
+      background: #fff;
+      padding: 20px;
+      overflow-y: auto;
+    }
+    .editor-field {
+      margin-bottom: 12px;
+    }
+    .editor-field label {
+      display: block;
+      font-size: 12px;
+      color: #475569;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .editor-field input,
+    .editor-field textarea,
+    .editor-field select {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 13px;
+    }
+    .editor-toolbar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
     
     /* ========== 弹窗样式 ========== */
     .modal-mask {
@@ -1117,6 +1225,30 @@
                     </div>
                   </div>
                 </div>
+
+                <div v-if="aiPPTAssembledPages.length > 0" style="margin-top:16px; background:#f0fdf4; border-radius:8px; padding:16px; border:1px solid #bbf7d0;">
+                  <div style="font-weight:700; color:#166534; margin-bottom:12px;">✅ 完整PPT页面 ({{aiPPTAssembledPages.length}}页)</div>
+                  <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:12px;">
+                    <div v-for="(p, idx) in aiPPTAssembledPages" :key="idx" style="background:#fff; border-radius:8px; overflow:hidden; border:1px solid #e2e8f0;">
+                      <div style="position:relative; aspect-ratio:16/9; background-size:cover; background-position:center;" :style="{backgroundImage: 'url('+p.background_url+')'}">
+                        <div style="position:absolute; top:4px; left:4px; background:rgba(0,0,0,0.6); color:#fff; padding:2px 8px; border-radius:4px; font-size:11px;">第{{p.page_number}}页</div>
+                        <div style="position:absolute; right:4px; top:4px; background:rgba(255,255,255,0.8); color:#0f172a; padding:2px 8px; border-radius:4px; font-size:11px;">{{ p.layout_style }}</div>
+                        <div v-for="(el, eidx) in (p.elements || [])" :key="eidx"
+                          :style="getThumbnailElementStyle(el)">
+                          {{ el.text }}
+                        </div>
+                      </div>
+                      <div style="padding:8px; font-size:12px; color:#475569;">
+                        <div style="font-weight:600;">{{p.title?.substring(0,20)}}</div>
+                        <div style="display:flex; gap:4px; margin-top:6px;">
+                          <button @click="openSlidePreview(idx)" style="font-size:10px; color:#3b82f6; background:none; border:1px solid #3b82f6; border-radius:3px; padding:1px 6px; cursor:pointer;">🔍</button>
+                          <button @click="openSlideEditor(idx)" style="font-size:10px; color:#10b981; background:none; border:1px solid #10b981; border-radius:3px; padding:1px 6px; cursor:pointer;">✏️</button>
+                          <button v-if="p.inline_image_url" @click="regenerateInlineImage(idx)" style="font-size:10px; color:#f59e0b; background:none; border:1px solid #f59e0b; border-radius:3px; padding:1px 6px; cursor:pointer;">🔄</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
                 
                 <!-- 导出 PPTX -->
                 <div style="margin-top:16px; display:flex; gap:12px; flex-wrap:wrap;">
@@ -1124,7 +1256,7 @@
                     style="padding:12px 28px; border-radius:10px; font-size:15px; font-weight:600; background:linear-gradient(135deg,#10b981,#059669); color:#fff; border:none;">
                     {{ aiPPTExportLoading ? '⏳ 导出中...' : '📦 导出 PPTX 下载' }}
                   </button>
-                  <button v-if="allBackgroundsReady" class="btn" @click="useGeneratedPPTForBroadcast()"
+                  <button v-if="aiPPTAssembledPages.length > 0" class="btn" @click="useGeneratedPPTForBroadcast()"
                     style="padding:12px 28px; border-radius:10px; font-size:15px; font-weight:600; background:linear-gradient(135deg,#f59e0b,#d97706); color:#fff; border:none;">
                     🎬 用此PPT播报
                   </button>
@@ -1304,8 +1436,78 @@
       </div>
       <!-- PPT 大图预览弹窗 -->
       <div class="ppt-preview-modal" v-if="showPptPreview" @click.self="showPptPreview=false">
-        <img :src="currentPreviewPptImg" alt="PPT 大图预览" class="preview-img">
+        <canvas v-if="previewSlidePage" ref="pptPreviewCanvas" class="ppt-preview-canvas"></canvas>
+        <img v-else :src="currentPreviewPptImg" alt="PPT 大图预览" class="preview-img">
         <button class="preview-close" @click="showPptPreview=false">×</button>
+      </div>
+
+      <div class="editor-modal-mask" v-if="showSlideEditor" @click.self="closeSlideEditor()">
+        <div class="editor-modal-box" @click.stop>
+          <div class="editor-canvas-panel">
+            <div style="font-size:14px; font-weight:700; color:#0f172a;">🎨 第{{ currentEditingSlide?.page_number || '-' }}页可视化编辑</div>
+            <div class="editor-canvas-stage"
+              ref="slideEditorStage"
+              :style="{ backgroundImage: currentEditingSlide ? 'url(' + currentEditingSlide.background_url + ')' : 'none' }"
+              @mousemove="handleSlideDragMove"
+              @mouseup="handleSlideDragEnd"
+              @mouseleave="handleSlideDragEnd">
+              <div v-if="currentEditingSlide?.inline_image_url && currentEditingSlide?.inline_image_position"
+                class="editor-inline-image"
+                :style="getEditorInlineImageStyle(currentEditingSlide)">
+                <img :src="currentEditingSlide.inline_image_url" alt="inline image">
+              </div>
+              <div v-for="(el, elIdx) in (currentEditingSlide?.elements || [])"
+                :key="el.id || elIdx"
+                class="editor-element"
+                :class="{ active: selectedEditorElementIdx === elIdx }"
+                :style="getEditorElementStyle(el)"
+                @mousedown.stop="startDragEditorElement($event, elIdx)"
+                @click.stop="selectEditorElement(elIdx)">
+                {{ el.text }}
+              </div>
+            </div>
+            <div style="font-size:12px; color:#64748b;">拖拽左侧文字元素即可调整位置，关闭即自动保存。</div>
+          </div>
+          <div class="editor-side-panel">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+              <div style="font-size:16px; font-weight:700; color:#0f172a;">属性面板</div>
+              <button class="btn btn-small btn-default" @click="closeSlideEditor()">关闭</button>
+            </div>
+            <div v-if="selectedEditorElement">
+              <div class="editor-field">
+                <label>文本内容</label>
+                <textarea v-model="selectedEditorElement.text" rows="4"></textarea>
+              </div>
+              <div class="editor-field">
+                <label>字号</label>
+                <input type="number" v-model.number="selectedEditorElement.fontSize" min="10" max="96" />
+              </div>
+              <div class="editor-field">
+                <label>颜色</label>
+                <input type="color" v-model="selectedEditorElement.color" />
+              </div>
+              <div class="editor-field">
+                <label>对齐</label>
+                <select v-model="selectedEditorElement.align">
+                  <option value="left">左对齐</option>
+                  <option value="center">居中</option>
+                  <option value="right">右对齐</option>
+                </select>
+              </div>
+              <div class="editor-field" style="display:flex; align-items:center; gap:8px;">
+                <input type="checkbox" v-model="selectedEditorElement.bold" style="width:auto;" />
+                <label style="margin:0;">加粗</label>
+              </div>
+              <div class="editor-toolbar">
+                <button class="btn btn-small btn-danger" @click="removeEditorElement()">删除文字</button>
+              </div>
+            </div>
+            <div v-else style="font-size:13px; color:#64748b; margin-bottom:12px;">请选择左侧文字元素进行编辑。</div>
+            <div class="editor-toolbar">
+              <button class="btn btn-small btn-primary" @click="addEditorElement()">+ 添加文字</button>
+            </div>
+          </div>
+        </div>
       </div>
       <!-- [P0_HIDDEN] 云端项目模块已隐藏 -->
       <!-- 保存项目弹窗 -->
@@ -1588,6 +1790,11 @@
         // PPT 预览相关（修复：补充模板依赖的响应式变量）
         const showPptPreview = ref(false);
         const currentPreviewPptImg = ref('');
+        const previewSlidePage = ref(null);
+        const pptPreviewCanvas = ref(null);
+        const slideEditorStage = ref(null);
+        const selectedEditorElementIdx = ref(null);
+        const slideDragState = reactive({ active: false, startX: 0, startY: 0, originX: 0, originY: 0 });
         // 翻页节点状态
         const pageTurningNodes = ref([]);
         const pageTurningConfirmed = ref(false);
@@ -1620,7 +1827,12 @@
         const aiPPTImageModel = ref('doubao'); // 'doubao' | 'gpt-image-2'
         const aiPPTOutline = ref(null);
         const aiPPTSelectedPage = ref(null);
-        const aiPPTOutlineDesc = ref(null);  // { cover_desc, body_desc, ending_desc }
+        const aiPPTOutlineDesc = ref(null);  // { cover_prompt, body_prompt, ending_prompt }
+        const aiPPTSlidesLayout = ref(null);  // DeepSeek 返回的每页布局 (slides + elements)
+        const aiPPTAssembledPages = ref([]);  // 组装后的完整PPT页面
+        const aiPPTAllImages = ref({});       // 所有图片 { cover, body, ending, inline_slideX: url }
+        const showSlideEditor = ref(false);   // 可视化编辑器弹窗
+        const editingSlideIdx = ref(null);    // 正在编辑的页面索引
         const aiPPTThemeColor = ref('#1e3a8a');  // 后端返回的 theme_color
         const aiPPTBackgrounds = ref([]);
         const aiPPTOutlineLoading = ref(false);
@@ -1669,11 +1881,208 @@
           const index = toastList.value.indexOf(toastItem);
           if (index > -1) toastList.value.splice(index, 1);
         }
+        function loadImage(url) {
+          return new Promise((resolve, reject) => {
+            if (!url) return resolve(null);
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => resolve(img);
+            img.onerror = reject;
+            img.src = url;
+          });
+        }
+        function normalizeImagePosition(position) {
+          return {
+            x: Number(position?.x ?? 62),
+            y: Number(position?.y ?? 24),
+            w: Number(position?.w ?? 28),
+            h: Number(position?.h ?? 48)
+          };
+        }
+        function drawTextElement(ctx, el, startX, startY, pptW, pptH) {
+          if (!el) return;
+          const elX = startX + (Number(el.x || 0) / 100) * pptW;
+          const elY = startY + (Number(el.y || 0) / 100) * pptH;
+          const scaledFontSize = Math.floor(Number(el.fontSize || 24) * 1.5);
+          const bgW = (Number(el.w || 0) / 100) * pptW + 40;
+          const bgH = (Number(el.h || 0) / 100) * pptH + 40;
+          ctx.save();
+          if (el.hasBg) {
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.08)';
+            ctx.shadowBlur = 15;
+            ctx.shadowOffsetY = 4;
+            const rx = elX - 20, ry = elY - 20;
+            if (ctx.roundRect) {
+              ctx.beginPath(); ctx.roundRect(rx, ry, bgW, bgH, 12); ctx.fill();
+            } else {
+              ctx.fillRect(rx, ry, bgW, bgH);
+            }
+          }
+          if (el.shadow) {
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.2)';
+            ctx.shadowBlur = 6;
+            ctx.shadowOffsetX = 2;
+            ctx.shadowOffsetY = 2;
+          } else {
+            ctx.shadowColor = 'transparent';
+          }
+          ctx.font = `${el.bold ? 'bold ' : ''}${scaledFontSize}px "Microsoft YaHei", sans-serif`;
+          ctx.fillStyle = el.color || '#000000';
+          ctx.textAlign = el.align || 'left';
+          ctx.textBaseline = 'top';
+          const lines = String(el.text || '').split('\n');
+          const lineHeight = scaledFontSize * 1.5;
+          lines.forEach((line, i) => ctx.fillText(line, elX, elY + (i * lineHeight)));
+          ctx.restore();
+        }
+        async function renderSlideToCanvas(page, canvasEl) {
+          if (!page || !canvasEl) return;
+          const ctx = canvasEl.getContext('2d');
+          canvasEl.width = 1280;
+          canvasEl.height = 720;
+          ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
+          ctx.fillStyle = '#0f172a';
+          ctx.fillRect(0, 0, canvasEl.width, canvasEl.height);
+          const bg = await loadImage(page.background_url).catch(() => null);
+          if (bg) ctx.drawImage(bg, 0, 0, canvasEl.width, canvasEl.height);
+          if (page.inline_image_url && page.inline_image_position) {
+            const inline = await loadImage(page.inline_image_url).catch(() => null);
+            const pos = normalizeImagePosition(page.inline_image_position);
+            if (inline) {
+              ctx.drawImage(inline, (pos.x / 100) * canvasEl.width, (pos.y / 100) * canvasEl.height, (pos.w / 100) * canvasEl.width, (pos.h / 100) * canvasEl.height);
+            }
+          }
+          (page.elements || []).forEach(el => drawTextElement(ctx, el, 0, 0, canvasEl.width, canvasEl.height));
+        }
+        function getThumbnailElementStyle(el) {
+          return {
+            position: 'absolute',
+            left: `${el.x || 0}%`,
+            top: `${el.y || 0}%`,
+            width: `${el.w || 30}%`,
+            color: el.color || '#111827',
+            fontSize: `${Math.max(10, Math.round((el.fontSize || 18) * 0.28))}px`,
+            fontWeight: el.bold ? '700' : '400',
+            textAlign: el.align || 'left',
+            whiteSpace: 'pre-wrap',
+            textShadow: el.shadow ? '0 1px 2px rgba(0,0,0,0.35)' : 'none',
+            background: el.hasBg ? 'rgba(255,255,255,0.72)' : 'transparent',
+            padding: el.hasBg ? '4px 6px' : '0',
+            borderRadius: el.hasBg ? '6px' : '0'
+          };
+        }
+        function getEditorElementStyle(el) {
+          return {
+            left: `${el.x || 0}%`,
+            top: `${el.y || 0}%`,
+            width: `${el.w || 30}%`,
+            color: el.color || '#111827',
+            fontSize: `${Math.max(12, Number(el.fontSize || 18) * 0.6)}px`,
+            fontWeight: el.bold ? '700' : '400',
+            textAlign: el.align || 'left',
+            background: el.hasBg ? 'rgba(255,255,255,0.76)' : 'transparent',
+            boxShadow: el.shadow ? '0 4px 14px rgba(0,0,0,0.18)' : 'none'
+          };
+        }
+        function getEditorInlineImageStyle(page) {
+          const pos = normalizeImagePosition(page?.inline_image_position);
+          return {
+            left: `${pos.x}%`,
+            top: `${pos.y}%`,
+            width: `${pos.w}%`,
+            height: `${pos.h}%`
+          };
+        }
         // [修复] PPT 预览函数移到顶层，模板可访问
         function openPptPreview(imageUrl) {
+          previewSlidePage.value = null;
           currentPreviewPptImg.value = imageUrl;
           showPptPreview.value = true;
           addLog('打开 PPT 大图预览', 'info');
+        }
+        async function openSlidePreview(idx) {
+          const page = aiPPTAssembledPages.value[idx];
+          if (!page) return;
+          previewSlidePage.value = page;
+          currentPreviewPptImg.value = page.background_url || '';
+          showPptPreview.value = true;
+          await nextTick();
+          await renderSlideToCanvas(page, pptPreviewCanvas.value);
+          addLog(`🔍 打开第 ${page.page_number} 页预览`, 'info');
+        }
+        const currentEditingSlide = computed(() => {
+          if (editingSlideIdx.value === null) return null;
+          return aiPPTAssembledPages.value[editingSlideIdx.value] || null;
+        });
+        const selectedEditorElement = computed(() => {
+          const page = currentEditingSlide.value;
+          if (!page || selectedEditorElementIdx.value === null) return null;
+          return page.elements?.[selectedEditorElementIdx.value] || null;
+        });
+        function selectEditorElement(idx) {
+          selectedEditorElementIdx.value = idx;
+        }
+        function openSlideEditor(idx) {
+          if (!aiPPTAssembledPages.value[idx]) return;
+          editingSlideIdx.value = idx;
+          selectedEditorElementIdx.value = 0;
+          showSlideEditor.value = true;
+          addLog(`✏️ 打开第 ${aiPPTAssembledPages.value[idx].page_number} 页编辑器`, 'info');
+        }
+        function closeSlideEditor() {
+          showSlideEditor.value = false;
+          slideDragState.active = false;
+          selectedEditorElementIdx.value = null;
+          editingSlideIdx.value = null;
+          addLog('✅ 幻灯片编辑已保存', 'success');
+        }
+        function startDragEditorElement(event, idx) {
+          const el = currentEditingSlide.value?.elements?.[idx];
+          if (!el) return;
+          selectedEditorElementIdx.value = idx;
+          slideDragState.active = true;
+          slideDragState.startX = event.clientX;
+          slideDragState.startY = event.clientY;
+          slideDragState.originX = Number(el.x || 0);
+          slideDragState.originY = Number(el.y || 0);
+        }
+        function handleSlideDragMove(event) {
+          if (!slideDragState.active || !selectedEditorElement.value || !slideEditorStage.value) return;
+          const rect = slideEditorStage.value.getBoundingClientRect();
+          const deltaX = ((event.clientX - slideDragState.startX) / rect.width) * 100;
+          const deltaY = ((event.clientY - slideDragState.startY) / rect.height) * 100;
+          selectedEditorElement.value.x = Math.max(0, Math.min(95, slideDragState.originX + deltaX));
+          selectedEditorElement.value.y = Math.max(0, Math.min(95, slideDragState.originY + deltaY));
+        }
+        function handleSlideDragEnd() {
+          slideDragState.active = false;
+        }
+        function addEditorElement() {
+          const page = currentEditingSlide.value;
+          if (!page) return;
+          if (!Array.isArray(page.elements)) page.elements = [];
+          page.elements.push({
+            id: 'custom_' + Date.now(),
+            text: '新文字',
+            x: 10,
+            y: 10,
+            w: 30,
+            h: 12,
+            fontSize: 20,
+            color: '#111827',
+            bold: false,
+            align: 'left',
+            hasBg: true,
+            shadow: false
+          });
+          selectedEditorElementIdx.value = page.elements.length - 1;
+        }
+        function removeEditorElement() {
+          const page = currentEditingSlide.value;
+          if (!page || selectedEditorElementIdx.value === null) return;
+          page.elements.splice(selectedEditorElementIdx.value, 1);
+          selectedEditorElementIdx.value = page.elements.length ? 0 : null;
         }
         // [修复 3] 句子高亮函数 - 修正查找逻辑
         function isSentenceHighlight(idx) {
@@ -1764,16 +2173,17 @@
                 page.elements = getLayoutCoords(page.layout_style || 'content', page);
               }
             });
-            // 保存 cover_desc / body_desc / ending_desc 供背景生成用
+            // 保存 cover_prompt / body_prompt / ending_prompt 供背景生成用
             aiPPTOutlineDesc.value = {
-              cover_desc: data.data.cover_desc || '',
-              body_desc: data.data.body_desc || '',
-              ending_desc: data.data.ending_desc || ''
+              cover_prompt: data.data.cover_prompt || '',
+              body_prompt: data.data.body_prompt || '',
+              ending_prompt: data.data.ending_prompt || ''
             };
-            // 保存 theme_color 供版式渲染（同步到独立 ref + 写入 outline）
-            const themeColor = data.data.theme_color || '#1e3a8a';
-            aiPPTThemeColor.value = themeColor;
-            data.data.theme_color = themeColor;
+            // 保存 theme_color + design_spec（从 design_spec 中提取）
+            const ds = data.data.design_spec || {};
+            aiPPTThemeColor.value = ds.theme_color || '#1e3a8a';
+            // 同步到 outline 供后续 layout 用
+            data.data.theme_color = aiPPTThemeColor.value;
             aiPPTOutline.value = data.data;
             aiPPTSelectedPage.value = 0;
             addLog(`✅ PPT 大纲生成成功，共 ${pages.length} 页`, 'success');
@@ -1786,44 +2196,105 @@
           }
         }
 
+        function assemblePPT() {
+          const slides = aiPPTSlidesLayout.value?.slides || [];
+          const images = aiPPTAllImages.value || {};
+          const pages = aiPPTOutline.value?.pages || [];
+          const assembled = slides.map(slide => {
+            const page = pages.find(p => p.page_number === slide.page_number) || {};
+            let bgUrl = images.body?.image_url || '';
+            if (slide.layout_style === 'cover') bgUrl = images.cover?.image_url || bgUrl;
+            else if (slide.layout_style === 'ending') bgUrl = images.ending?.image_url || bgUrl;
+            let inlineImgUrl = null;
+            if (slide.has_image && slide.image_prompt) {
+              const inlineKey = 'inline_slide' + slide.page_number;
+              inlineImgUrl = images[inlineKey]?.image_url || null;
+            }
+            return {
+              page_number: slide.page_number,
+              title: page.title || slide.title || '',
+              subtitle: page.subtitle || slide.subtitle || '',
+              layout_style: slide.layout_style,
+              background_url: bgUrl,
+              inline_image_url: inlineImgUrl,
+              inline_image_position: slide.image_position || null,
+              elements: (slide.elements && slide.elements.length > 0) ? slide.elements : getLayoutCoords(slide.layout_style || page.layout_style || 'content', page, aiPPTOutline.value?.theme_color)
+            };
+          });
+          aiPPTAssembledPages.value = assembled;
+          addLog(`✅ PPT组装完成，共 ${assembled.length} 页`, 'success');
+        }
+
         async function generatePPTBackgrounds() {
           if (!aiPPTOutline.value || !aiPPTOutline.value.pages) return;
           aiPPTBackgroundsLoading.value = true;
           const desc = aiPPTOutlineDesc.value || {};
-          addLog('🎨 开始生成 3 张母版背景图（封面+正文+尾页）', 'info');
-          // 初始化 3 张为 loading
+          const pages = aiPPTOutline.value.pages || [];
+          addLog('🎨 开始分步生成 PPT：先出布局，再统一出图', 'info');
           aiPPTBackgrounds.value = [
             { key: 'cover', page_number: 0, image_url: null, status: 'loading' },
             { key: 'body', page_number: 0, image_url: null, status: 'loading' },
             { key: 'ending', page_number: 0, image_url: null, status: 'loading' }
           ];
-
+          aiPPTAssembledPages.value = [];
           try {
-            const resp = await fetchWithTimeout(`${API_BASE_URL}/ai/generate-ppt-backgrounds`, {
+            const layoutResp = await fetchWithTimeout(`${API_BASE_URL}/ai/generate-slide-layouts`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                cover_desc: desc.cover_desc || '',
-                body_desc: desc.body_desc || '',
-                ending_desc: desc.ending_desc || '',
+                design_spec: {
+                  ...(aiPPTOutline.value?.design_spec || {}),
+                  cover_prompt: desc.cover_prompt || '',
+                  body_prompt: desc.body_prompt || '',
+                  ending_prompt: desc.ending_prompt || ''
+                },
+                pages
+              })
+            }, AI_TIMEOUT_MS);
+            const layoutData = await layoutResp.json();
+            if (layoutData.code !== 0) throw new Error(layoutData.msg || '逐页布局生成失败');
+            aiPPTSlidesLayout.value = layoutData.data || null;
+            addLog(`✅ 逐页布局生成完成，共 ${(aiPPTSlidesLayout.value?.slides || []).length} 页`, 'success');
+
+            const slides = aiPPTSlidesLayout.value?.slides || [];
+            const inlineImages = [];
+            slides.forEach(slide => {
+              if (slide.has_image && slide.image_prompt) {
+                inlineImages.push({
+                  key: 'inline_slide' + slide.page_number,
+                  prompt: slide.image_prompt,
+                  page_number: slide.page_number
+                });
+              }
+            });
+
+            const imageResp = await fetchWithTimeout(`${API_BASE_URL}/ai/generate-ppt-backgrounds`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                cover_prompt: desc.cover_prompt || '',
+                body_prompt: desc.body_prompt || '',
+                ending_prompt: desc.ending_prompt || '',
+                inline_images: inlineImages,
                 model: aiPPTImageModel.value
               })
-            });
-            const data = await resp.json();
-            if (data.code !== 0) throw new Error(data.msg);
-
-            // 更新 3 张状态
-            const results = data.data;
-            for (const [key, val] of Object.entries(results || {})) {
-              const idx = aiPPTBackgrounds.value.findIndex(bg => bg.key === key);
-              if (idx >= 0) {
-                aiPPTBackgrounds.value[idx] = { key, page_number: 0, image_url: val.image_url, status: val.status || 'failed', error: val.error || '' };
-              }
-            }
+            }, AI_TIMEOUT_MS);
+            const imageData = await imageResp.json();
+            if (imageData.code !== 0) throw new Error(imageData.msg || '图片生成失败');
+            const results = imageData.data || {};
+            aiPPTAllImages.value = results;
+            aiPPTBackgrounds.value = ['cover', 'body', 'ending'].map(key => ({
+              key,
+              page_number: 0,
+              image_url: results[key]?.image_url || null,
+              status: results[key]?.status || 'failed',
+              error: results[key]?.error || ''
+            }));
+            assemblePPT();
             const done = aiPPTBackgrounds.value.filter(bg => bg.status === 'done').length;
             const fail = aiPPTBackgrounds.value.filter(bg => bg.status === 'failed').length;
-            addLog(`✅ 母版背景：${done} 成功，${fail} 失败`, fail > 0 ? 'warn' : 'success');
-            showToast(`背景图：${done}/3 成功`, fail > 0 ? 'warn' : 'success');
+            addLog(`✅ 分步生成完成：背景 ${done} 成功，${fail} 失败`, fail > 0 ? 'warn' : 'success');
+            showToast(`PPT 已组装完成，共 ${aiPPTAssembledPages.value.length} 页`, fail > 0 ? 'warn' : 'success');
           } catch (e) {
             addLog(`❌ 背景图生成失败: ${e.message}`, 'error');
             showToast(`背景图生成失败: ${e.message}`, 'error');
@@ -1833,7 +2304,6 @@
         }
 
         async function regeneratePage(idx) {
-          // idx 是母版索引：0=cover, 1=body, 2=ending
           const key = aiPPTBackgrounds.value[idx]?.key;
           if (!key) {
             addLog(`❌ regeneratePage: 无效的母版索引 ${idx}`, 'error');
@@ -1841,15 +2311,14 @@
           }
           aiPPTBackgrounds.value[idx].status = 'loading';
           const desc = aiPPTOutlineDesc.value || {};
-          const desc_map = { cover: desc.cover_desc || '', body: desc.body_desc || '', ending: desc.ending_desc || '' };
           try {
             const resp = await fetchWithTimeout(`${API_BASE_URL}/ai/generate-ppt-backgrounds`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                cover_desc: key === 'cover' ? (desc_map.cover || 'Professional 16:9 cover slide background, clean corporate style, no text') : '',
-                body_desc: key === 'body' ? (desc_map.body || 'Minimalist 16:9 slide background, white with thin dark blue line at top, no text') : '',
-                ending_desc: key === 'ending' ? (desc_map.ending || 'Elegant 16:9 ending slide background, clean corporate style, no text') : '',
+                cover_prompt: key === 'cover' ? (desc.cover_prompt || '') : '',
+                body_prompt: key === 'body' ? (desc.body_prompt || '') : '',
+                ending_prompt: key === 'ending' ? (desc.ending_prompt || '') : '',
                 model: aiPPTImageModel.value
               })
             }, 300000);
@@ -1857,7 +2326,9 @@
             if (data.code !== 0) throw new Error(data.msg);
             const val = (data.data || {})[key];
             if (val) {
+              aiPPTAllImages.value = { ...aiPPTAllImages.value, [key]: val };
               aiPPTBackgrounds.value.splice(idx, 1, { key, page_number: 0, image_url: val.image_url, status: val.status || 'failed', error: val.error || '' });
+              assemblePPT();
               addLog(`✅ ${key} 母版重生成成功`, 'success');
             } else {
               aiPPTBackgrounds.value.splice(idx, 1, { key, page_number: 0, image_url: null, status: 'failed', error: 'no result' });
@@ -1865,6 +2336,34 @@
           } catch (e) {
             aiPPTBackgrounds.value.splice(idx, 1, { key, page_number: 0, image_url: null, status: 'failed', error: e.message?.substring(0, 200) || 'unknown error' });
             addLog(`❌ ${key} 重生成失败: ${e.message}`, 'error');
+          }
+        }
+
+        async function regenerateInlineImage(idx) {
+          const page = aiPPTAssembledPages.value[idx];
+          const slide = aiPPTSlidesLayout.value?.slides?.find(s => s.page_number === page?.page_number);
+          if (!page || !slide?.image_prompt) return;
+          const inlineKey = 'inline_slide' + slide.page_number;
+          addLog(`🖼️ 正在重生成第 ${slide.page_number} 页配图...`, 'info');
+          try {
+            const resp = await fetchWithTimeout(`${API_BASE_URL}/ai/generate-ppt-backgrounds`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                cover_prompt: '', body_prompt: '', ending_prompt: '',
+                inline_images: [{ key: inlineKey, prompt: slide.image_prompt, page_number: slide.page_number }],
+                model: aiPPTImageModel.value
+              })
+            }, 300000);
+            const data = await resp.json();
+            if (data.code !== 0) throw new Error(data.msg || '重生成失败');
+            const val = data.data?.[inlineKey];
+            if (!val?.image_url) throw new Error('未返回配图');
+            aiPPTAllImages.value = { ...aiPPTAllImages.value, [inlineKey]: val };
+            assemblePPT();
+            addLog(`✅ 第 ${slide.page_number} 页配图已更新`, 'success');
+          } catch (e) {
+            addLog(`❌ 第 ${slide.page_number} 页配图重生成失败: ${e.message}`, 'error');
           }
         }
 
@@ -1885,18 +2384,11 @@
           aiPPTExportLoading.value = true;
           addLog('📦 正在生成 PPTX 文件...', 'info');
           try {
-            // 获取母版背景 URL
-            const bgMap = {};
-            aiPPTBackgrounds.value.forEach(bg => { if (bg.status === 'done') bgMap[bg.key] = bg.image_url; });
-            const pages = (aiPPTOutline.value.pages || []).map(p => {
-              let bgUrl = bgMap.body || bgMap.cover || '';
-              if (p.layout_style === 'cover') bgUrl = bgMap.cover || bgMap.body || '';
-              else if (p.layout_style === 'ending') bgUrl = bgMap.ending || bgMap.body || '';
-              if (!p.elements || p.elements.length === 0) {
-                p.elements = getLayoutCoords(p.layout_style || 'content', p, aiPPTOutline.value?.theme_color);
-              }
-              return { ...p, image_url: bgUrl };
-            });
+            const pages = (aiPPTAssembledPages.value || []).map(p => ({
+              ...p,
+              image_url: p.background_url,
+              image_position: p.inline_image_position
+            }));
             const resp = await fetchWithTimeout(`${API_BASE_URL}/ppt/export-from-outline`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -1919,34 +2411,22 @@
         }
 
         async function useGeneratedPPTForBroadcast() {
-          addLog('🎬 使用 AI 生成的 PPT 进行播报...', 'info');
-          // 找到 3 张母版图
-          const bgMap = {};
-          aiPPTBackgrounds.value.forEach(bg => { if (bg.status === 'done') bgMap[bg.key] = bg.image_url; });
-          if (!bgMap.body && !bgMap.cover) { showToast('请先生成背景图', 'error'); return; }
-          
-          const pages = aiPPTOutline.value.pages || [];
-          const pageData = pages.map(p => {
+          addLog('🎬 使用 AI 组装后的 PPT 进行播报...', 'info');
+          if (!aiPPTAssembledPages.value.length) { showToast('请先完成 PPT 组装', 'error'); return; }
+          const pageData = aiPPTAssembledPages.value.map(p => {
             const img = new Image();
             img.crossOrigin = 'anonymous';
-            // 封面用 cover 背景，尾页用 ending 背景，正文用 body 背景
-            let bgUrl = bgMap.body || bgMap.cover || '';
-            if (p.layout_style === 'cover') bgUrl = bgMap.cover || bgMap.body || '';
-            else if (p.layout_style === 'ending') bgUrl = bgMap.ending || bgMap.body || '';
-            img.src = bgUrl;
-            
-            // 确保每页 elements 已装配
-            if (!p.elements || p.elements.length === 0) {
-              p.elements = getLayoutCoords(p.layout_style || 'content', p, aiPPTOutline.value?.theme_color);
-            }
+            img.src = p.background_url || '';
             return {
               page_num: p.page_number,
               page_title: p.title || p.subtitle || '',
-              page_text: [p.title, ...(p.exact_content || [])].filter(Boolean).join('；'),
+              page_text: [p.title, p.subtitle, ...(p.elements || []).map(el => el.text)].filter(Boolean).join('；'),
               page_image: img,
-              page_image_url: bgUrl,
+              page_image_url: p.background_url || '',
               elements: p.elements || [],
-              layout_style: p.layout_style || 'content'
+              layout_style: p.layout_style || 'content',
+              inline_image_url: p.inline_image_url || null,
+              inline_image_position: p.inline_image_position || null
             };
           });
           
@@ -1957,11 +2437,25 @@
           pptConfig.pptTitle = aiPPTTopic.value || 'AI生成的PPT';
           pptConfig.isLocal = false;
           
-          const imagePromises = pageData.map(p => new Promise((resolve) => {
-            p.page_image.onload = () => resolve(p.page_image);
-            p.page_image.onerror = () => { addLog('⚠️ 图片加载失败', 'warn'); resolve(null); };
-            if (p.page_image.complete) resolve(p.page_image);
-          }));
+          const imagePromises = pageData.flatMap(p => {
+            const tasks = [new Promise((resolve) => {
+              p.page_image.onload = () => resolve(p.page_image);
+              p.page_image.onerror = () => { addLog('⚠️ 背景图加载失败', 'warn'); resolve(null); };
+              if (p.page_image.complete) resolve(p.page_image);
+            })];
+            if (p.inline_image_url) {
+              const inlineImg = new Image();
+              inlineImg.crossOrigin = 'anonymous';
+              inlineImg.src = p.inline_image_url;
+              p.inline_image = inlineImg;
+              tasks.push(new Promise((resolve) => {
+                inlineImg.onload = () => resolve(inlineImg);
+                inlineImg.onerror = () => { addLog('⚠️ 配图加载失败', 'warn'); resolve(null); };
+                if (inlineImg.complete) resolve(inlineImg);
+              }));
+            }
+            return tasks;
+          });
           const turningPromise = generateTurningNodes(false, true);
           
           try {
@@ -2166,6 +2660,7 @@
           addLog('已取消翻页规则编辑', 'info');
         }
         function confirmTurningRules() {
+          showToast('确认时系统会自动纠偏句子分配连续性', 'warn', 5000);
           const nodes = [...pageTurningNodes.value].sort((a,b)=>a.page_num-b.page_num);
           if (nodes.length === 0) {
             addLog('❌ 没有翻页节点数据', 'error');
@@ -2644,8 +3139,6 @@ ${sentencesList}
                   const pptH = 810;
                   const startX = 40;
                   const startY = 40;
-                  
-                  // 1. 绘制纯净背景图
                   ctx.save();
                   ctx.shadowColor = 'rgba(0,0,0,0.5)';
                   ctx.shadowBlur = 20;
@@ -2653,50 +3146,15 @@ ${sentencesList}
                   ctx.shadowOffsetY = 10;
                   ctx.drawImage(currentPageData.page_image, startX, startY, pptW, pptH);
                   ctx.restore();
-                  
-                  // 2. 遍历 elements 绘制 V3 文字层（Pt→Px 换算：1Pt = 1.5Px）—— 母版渲染引擎
+                  if (currentPageData.inline_image_url && currentPageData.inline_image_position) {
+                    const pos = normalizeImagePosition(currentPageData.inline_image_position);
+                    const inlineImg = currentPageData.inline_image;
+                    if (inlineImg && inlineImg.complete) {
+                      ctx.drawImage(inlineImg, startX + (pos.x / 100) * pptW, startY + (pos.y / 100) * pptH, (pos.w / 100) * pptW, (pos.h / 100) * pptH);
+                    }
+                  }
                   if (currentPageData.elements && currentPageData.elements.length > 0) {
-                    currentPageData.elements.forEach(el => {
-                      const elX = startX + (el.x / 100) * pptW;
-                      const elY = startY + (el.y / 100) * pptH;
-                      const scaledFontSize = Math.floor(el.fontSize * 1.5);
-                      const bgW = (el.w / 100) * pptW + 40;
-                      const bgH = (el.h / 100) * pptH + 40;
-                      ctx.save();
-                      // 1. 半透明白色底色文本框 (hasBg)
-                      if (el.hasBg) {
-                        ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
-                        ctx.shadowColor = 'rgba(0, 0, 0, 0.08)';
-                        ctx.shadowBlur = 15;
-                        ctx.shadowOffsetY = 4;
-                        const rx = elX - 20, ry = elY - 20;
-                        if (ctx.roundRect) {
-                          ctx.beginPath(); ctx.roundRect(rx, ry, bgW, bgH, 12); ctx.fill();
-                        } else {
-                          ctx.fillRect(rx, ry, bgW, bgH);
-                        }
-                      }
-                      // 2. 标题文字阴影
-                      if (el.shadow) {
-                        ctx.shadowColor = 'rgba(0, 0, 0, 0.2)';
-                        ctx.shadowBlur = 6;
-                        ctx.shadowOffsetX = 2;
-                        ctx.shadowOffsetY = 2;
-                      } else {
-                        ctx.shadowColor = 'transparent';
-                      }
-                      // 3. 绘制多行文字
-                      ctx.font = `${el.bold ? 'bold ' : ''}${scaledFontSize}px "Microsoft YaHei", sans-serif`;
-                      ctx.fillStyle = el.color || '#000000';
-                      ctx.textAlign = el.align || 'left';
-                      ctx.textBaseline = 'top';
-                      const lines = (el.text || '').split('\n');
-                      const lineHeight = scaledFontSize * 1.5;
-                      lines.forEach((line, i) => {
-                        ctx.fillText(line, elX, elY + (i * lineHeight));
-                      });
-                      ctx.restore();
-                    });
+                    currentPageData.elements.forEach(el => drawTextElement(ctx, el, startX, startY, pptW, pptH));
                   }
                 }
               }
@@ -3679,11 +4137,16 @@ ${sentencesList}
           scrollToTop,
           // V3: AI 生成 PPT
           pptSource, aiPPTTopic, aiPPTPageCount, aiPPTImageModel, aiPPTOutline, aiPPTOutlineDesc, aiPPTThemeColor,
+          aiPPTSlidesLayout, aiPPTAssembledPages, aiPPTAllImages, showSlideEditor, editingSlideIdx,
           aiPPTSelectedPage, aiPPTBackgrounds, aiPPTOutlineLoading,
           aiPPTBackgroundsLoading, aiPPTExportLoading, allBackgroundsReady,
+          previewSlidePage, pptPreviewCanvas, currentEditingSlide, selectedEditorElementIdx, selectedEditorElement,
           getPageTypeLabel, switchToAIGenerate, generatePPTOutline, generatePPTBackgrounds,
           regeneratePage, addBullet, openGeneratedImage, exportPPTX,
-          useGeneratedPPTForBroadcast,
+          useGeneratedPPTForBroadcast, openSlidePreview, openSlideEditor, closeSlideEditor,
+          regenerateInlineImage, assemblePPT, getThumbnailElementStyle, getEditorElementStyle,
+          getEditorInlineImageStyle, selectEditorElement, startDragEditorElement, handleSlideDragMove,
+          handleSlideDragEnd, addEditorElement, removeEditorElement,
         };
       }
     }).mount('#app');
