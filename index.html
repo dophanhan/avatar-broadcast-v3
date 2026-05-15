@@ -1000,8 +1000,10 @@
               <!-- Step 1: 生成大纲 -->
               <div style="margin-bottom:16px;">
                 <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+                  <label style="display:flex; align-items:center; gap:6px; font-size:13px; color:#475569; font-weight:600; white-space:nowrap;">主题:</label>
                   <input v-model="aiPPTTopic" placeholder="PPT主题（如：2025年度工作总结）" 
                     style="flex:1; min-width:200px; padding:10px 14px; border:1px solid #cbd5e1; border-radius:8px; font-size:14px;" />
+                  <label style="display:flex; align-items:center; gap:6px; font-size:13px; color:#475569; font-weight:600; white-space:nowrap;">页数:</label>
                   <select v-model.number="aiPPTPageCount" 
                     style="padding:10px 14px; border:1px solid #cbd5e1; border-radius:8px; font-size:14px; background:#fff;">
                     <option :value="5">5 页</option>
@@ -1010,6 +1012,7 @@
                     <option :value="12">12 页</option>
                     <option :value="15">15 页</option>
                   </select>
+                  <label style="display:flex; align-items:center; gap:6px; font-size:13px; color:#475569; font-weight:600; white-space:nowrap;">模型:</label>
                   <select v-model="aiPPTImageModel" 
                     style="padding:10px 14px; border:1px solid #cbd5e1; border-radius:8px; font-size:14px; background:#fff;">
                     <option value="doubao">豆包 Seedream</option>
@@ -1102,8 +1105,12 @@
                       <button @click.stop="regeneratePage(idx)" style="margin-top:6px; font-size:11px; color:#3b82f6; background:none; border:1px solid #3b82f6; border-radius:4px; padding:2px 8px; cursor:pointer;">重试</button>
                     </div>
                     <img v-else :src="bg.image_url" style="width:100%; aspect-ratio:16/9; object-fit:cover;" :alt="'第'+bg.page_number+'页'" />
-                    <div style="padding:6px 10px; font-size:12px; color:#64748b; text-align:center;">
-                      第{{ bg.page_number }}页 {{ bg.status === 'done' ? '✅' : '' }}
+                    <div style="padding:6px 10px; font-size:12px; color:#64748b; display:flex; justify-content:space-between; align-items:center;">
+                      <span>第{{ bg.page_number }}页 {{ bg.status === 'done' ? '✅' : '' }}</span>
+                      <div style="display:flex; gap:4px;">
+                        <button @click.stop="openGeneratedImage(bg)" style="font-size:10px; color:#3b82f6; background:none; border:1px solid #3b82f6; border-radius:3px; padding:1px 6px; cursor:pointer;">🔍</button>
+                        <button @click.stop="regeneratePage(idx)" style="font-size:10px; color:#f59e0b; background:none; border:1px solid #f59e0b; border-radius:3px; padding:1px 6px; cursor:pointer;">🔄</button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1681,7 +1688,7 @@
             aiPPTOutline.value = null;
             aiPPTBackgrounds.value = [];
             aiPPTSelectedPage.value = null;
-            aiPPTTopic.value = config.text.substring(0, 50);
+            aiPPTTopic.value = '';
           }
         }
 
@@ -1699,10 +1706,7 @@
         function switchToAIGenerate() {
           pptSource.value = 'ai';
           showToast('已切换到 AI 智能生成 PPT 模式', 'success', 2000);
-          // 自动提取文案前50字作为主题
-          if (!aiPPTTopic.value && config.text.trim()) {
-            aiPPTTopic.value = config.text.trim().substring(0, 50);
-          }
+          // 不自动填主题，让用户自己输入
         }
 
         async function generatePPTOutline() {
@@ -2125,6 +2129,7 @@
           nodes[nodes.length - 1].end_sentence_index = currentSentences.value.length - 1;
           pageTurningNodes.value = nodes;
           pageTurningConfirmed.value = true;
+          step.value = 4;
           addLog('✅ 翻页规则已自动纠偏并确认生效!', 'success');
           
           // 👇 在函数最后新增这两行
