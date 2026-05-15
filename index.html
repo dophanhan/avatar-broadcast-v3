@@ -928,13 +928,27 @@
 
           <!-- PPT 模式下先输入文案 -->
           <div class="form-group" style="margin-bottom:20px;">
-            <label>📝 播报文案</label>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <label style="margin:0;">📝 播报文案</label>
+              <div style="display:flex; gap:8px;">
+                <input type="file" ref="docFileInput" accept=".txt,.pdf,.docx" style="display:none" @change="handleDocUpload">
+                <button class="btn-ai-generate" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); color: #333; padding:6px 14px; border:none; border-radius:6px; font-size:12px; cursor:pointer;" @click="$refs.docFileInput.click()" :disabled="isParsingDoc">
+                  <span v-if="!isParsingDoc">📄 导入文档</span>
+                  <span v-else>⏳ 解析中...</span>
+                </button>
+                <button class="btn-ai-generate" :disabled="!canAIGenerate" @click="handleAIGenerate" :title="canAIGenerate ? '根据 PPT 内容自动生成播报文本' : '请先导入 PPT 文件'" style="padding:6px 14px; border:none; border-radius:6px; font-size:12px; cursor:pointer; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                  <span v-if="!aiGenerating">✨ AI 生成</span>
+                  <span v-else>🔄 生成中...</span>
+                </button>
+              </div>
+            </div>
             <textarea 
               v-model="config.text" 
               placeholder="请输入要播报的文本内容..." 
               @input="clearCache"
               style="height:150px;"
             ></textarea>
+            <div v-if="aiGenerateError" class="error-tip">{{ aiGenerateError }}</div>
             <div style="text-align:right;margin-top:5px;color:#666;font-size:12px;">共 {{ currentSentences.length }} 句</div>
           </div>
 
