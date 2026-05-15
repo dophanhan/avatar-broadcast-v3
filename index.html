@@ -1160,14 +1160,13 @@
                     <div style="font-size:13px; font-weight:600; color:#475569; margin-bottom:4px;">页面版式</div>
                     <select v-model="aiPPTOutline.pages[aiPPTSelectedPage].layout_style" style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; margin-bottom:10px; font-size:13px;">
                       <option value="cover">📔 封面</option>
-                      <option value="toc">📋 目录</option>
-                      <option value="title_only">📌 过渡章节页</option>
-                      <option value="text_left_chart_right">📊 左内容右图表</option>
+                      <option value="text_only">📝 纯文字内容</option>
+                      <option value="text_left_chart_right">📊 左文右图</option>
+                      <option value="image_left_text_right">🖼️ 左图右文</option>
                       <option value="comparison">⚖️ 左右对比</option>
                       <option value="three_columns">📐 三列并排</option>
-                      <option value="four_grid">🔲 四宫格矩阵</option>
-                      <option value="timeline">📅 时间轴/流程</option>
-                      <option value="data_focus">📈 数据图表强调</option>
+                      <option value="grid_4">🔲 四宫格</option>
+                      <option value="data_focus">📈 数据聚焦</option>
                       <option value="ending">📄 结尾页</option>
                     </select>
                     <div style="font-size:13px; font-weight:600; color:#475569; margin-bottom:4px;">标题</div>
@@ -1799,7 +1798,12 @@
             if (t) el.push({ id: 't', text: t, x: 8, y: 10, w: 40, fontSize: 36, color: tc, bold: true, align: LEFT });
             if (st) el.push({ id: 's', text: st, x: 8, y: 22, w: 40, fontSize: 20, color: sc, align: LEFT });
             if (contentText) el.push({ id: 'c', text: contentText, x: 8, y: 32, w: 38, fontSize: 22, color: '#334155', align: LEFT, lineGap: 16 });
-            // 为配图留出的位置: x: 52, y: 15, w: 40, h: 70
+            // 配图位置: x: 52, y: 15, w: 40, h: 70
+          } else if (layout === 'image_left_text_right') {
+            // 配图位置: x: 5, y: 15, w: 40, h: 70
+            if (t) el.push({ id: 't', text: t, x: 50, y: 10, w: 42, fontSize: 36, color: tc, bold: true, align: LEFT });
+            if (st) el.push({ id: 's', text: st, x: 50, y: 22, w: 42, fontSize: 20, color: sc, align: LEFT });
+            if (contentText) el.push({ id: 'c', text: contentText, x: 50, y: 32, w: 42, fontSize: 22, color: '#334155', align: LEFT, lineGap: 16 });
           } else if (layout === 'comparison') {
             if (t) el.push({ id: 't', text: t, x: 8, y: 8, w: 84, fontSize: 36, color: tc, bold: true, align: CENTER });
             if (st) el.push({ id: 's', text: st, x: 8, y: 18, w: 84, fontSize: 20, color: sc, align: CENTER });
@@ -1807,11 +1811,20 @@
             const rightText = bullets.filter((_, i) => i % 2 === 1).map(c => '• ' + c).join('\n\n');
             if (leftText) el.push({ id: 'c_left', text: leftText, x: 10, y: 30, w: 38, fontSize: 22, color: '#334155', align: LEFT, lineGap: 16 });
             if (rightText) el.push({ id: 'c_right', text: rightText, x: 52, y: 30, w: 38, fontSize: 22, color: '#334155', align: LEFT, lineGap: 16 });
+          } else if (layout === 'grid_4') {
+            if (t) el.push({ id: 't', text: t, x: 8, y: 5, w: 84, fontSize: 34, color: tc, bold: true, align: CENTER });
+            if (st) el.push({ id: 's', text: st, x: 8, y: 14, w: 84, fontSize: 18, color: sc, align: CENTER });
+            const gridX = [8, 50], gridY = [22, 48], gridW = 38, gridH = 24;
+            for (let g = 0; g < 4 && g < bullets.length; g++) {
+              const cx = gridX[g % 2];
+              const cy = gridY[Math.floor(g / 2)];
+              el.push({ id: 'g' + g, text: '• ' + bullets[g], x: cx, y: cy, w: gridW, fontSize: 20, color: '#334155', align: LEFT, lineGap: 12 });
+            }
           } else if (layout === 'ending') {
             if (t) el.push({ id: 't', text: t, x: 10, y: 40, w: 80, fontSize: 52, color: '#FFFFFF', bold: true, align: CENTER, shadow: true });
             if (st) el.push({ id: 's', text: st, x: 10, y: 58, w: 80, fontSize: 24, color: 'rgba(255,255,255,0.85)', align: CENTER, shadow: true });
           } else {
-            // 默认基础排版 (标题在上，内容在下)
+            // 默认基础排版 (标题在上，内容在下) — text_only / data_focus 等
             if (t) el.push({ id: 't', text: t, x: 8, y: 8, w: 84, fontSize: 36, color: tc, bold: true, align: LEFT });
             if (st) el.push({ id: 's', text: st, x: 8, y: 18, w: 84, fontSize: 20, color: sc, align: LEFT });
             if (contentText) el.push({ id: 'c', text: contentText, x: 8, y: 30, w: 84, fontSize: 22, color: '#334155', align: LEFT, lineGap: 16 });
@@ -2452,6 +2465,7 @@
             let bgUrl = images.body?.image_url || '';
             if (slide.layout_style === 'cover') bgUrl = images.cover?.image_url || bgUrl;
             else if (slide.layout_style === 'ending') bgUrl = images.ending?.image_url || bgUrl;
+            else bgUrl = images.body?.image_url || '';
             let inlineImgUrl = null;
             if (slide.has_image && slide.image_prompt) {
               const inlineKey = 'inline_slide' + slide.page_number;
@@ -2476,10 +2490,11 @@
         async function generatePPTBackgrounds() {
           if (!aiPPTOutline.value || !aiPPTOutline.value.pages) return;
           aiPPTBackgroundsLoading.value = true;
+          const outline = aiPPTOutline.value;
           const desc = aiPPTOutlineDesc.value || {};
-          const pages = aiPPTOutline.value.pages || [];
+          const pages = outline.pages || [];
 
-          addLog('🎨 开始并发生成 PPT 母版与配图...', 'info');
+          addLog('🎨 开始并发生成封面/正文/尾页底图 + 插图...', 'info');
           aiPPTBackgrounds.value = [
             { key: 'cover', page_number: 0, image_url: null, status: 'loading' },
             { key: 'body', page_number: 0, image_url: null, status: 'loading' },
@@ -2488,10 +2503,11 @@
           aiPPTAssembledPages.value = [];
 
           try {
-            // 1. 提取所有需要生成的配图 (直接从 Outline 中读取)
+            // 1. 提取所有插图 (图文版式页的 inline_image_prompt)
             const inlineImages = [];
+            const IMAGE_LAYOUTS = ['text_left_chart_right', 'image_left_text_right', 'data_focus'];
             pages.forEach(page => {
-              if (page.inline_image_prompt) {
+              if (IMAGE_LAYOUTS.includes(page.layout_style) && page.inline_image_prompt) {
                 inlineImages.push({
                   key: 'inline_slide' + page.page_number,
                   prompt: page.inline_image_prompt,
@@ -2500,14 +2516,14 @@
               }
             });
 
-            // 2. 直接发送给画图接口
+            // 2. 直接发送给画图接口 (封面 + 正文底图 + 尾页 + 插图)
             const imageResp = await fetchWithTimeout(`${API_BASE_URL}/ai/generate-ppt-backgrounds`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                cover_prompt: desc.cover_prompt || aiPPTOutline.value.cover_prompt || '',
-                body_prompt: desc.body_prompt || aiPPTOutline.value.body_prompt || '',
-                ending_prompt: desc.ending_prompt || aiPPTOutline.value.ending_prompt || '',
+                cover_prompt: desc.cover_prompt || outline.cover_prompt || '',
+                body_prompt: desc.body_prompt || outline.body_prompt || '',
+                ending_prompt: desc.ending_prompt || outline.ending_prompt || '',
                 inline_images: inlineImages,
                 model: aiPPTImageModel.value
               })
@@ -2519,15 +2535,21 @@
             const results = imageData.data || {};
             aiPPTAllImages.value = results;
 
-            // 3. 将版式数据直接挂载到组装数据流中，替代原本后端的 Layouts
+            // 3. 组装版式数据 (图文版式固定配图坐标)
+            function getImagePosition(layout) {
+              if (layout === 'text_left_chart_right') return { x: 52, y: 15, w: 40, h: 70 };
+              if (layout === 'image_left_text_right') return { x: 5, y: 15, w: 40, h: 70 };
+              if (layout === 'data_focus') return { x: 5, y: 65, w: 90, h: 28 };
+              return null;
+            }
+
             aiPPTSlidesLayout.value = {
               slides: pages.map(p => ({
                 page_number: p.page_number,
                 layout_style: p.layout_style,
-                has_image: !!p.inline_image_prompt,
+                has_image: IMAGE_LAYOUTS.includes(p.layout_style) && !!p.inline_image_prompt,
                 image_prompt: p.inline_image_prompt,
-                // 如果是图文版式，固定配图坐标位置
-                image_position: p.layout_style === 'text_left_chart_right' ? { x: 52, y: 15, w: 40, h: 70 } : null,
+                image_position: getImagePosition(p.layout_style),
                 elements: getLayoutCoords(p.layout_style, p, aiPPTThemeColor.value)
               }))
             };
