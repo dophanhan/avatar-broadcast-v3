@@ -2218,7 +2218,7 @@
               background_url: bgUrl,
               inline_image_url: inlineImgUrl,
               inline_image_position: slide.image_position || null,
-              elements: (slide.elements && slide.elements.length > 0) ? slide.elements : getLayoutCoords(slide.layout_style || page.layout_style || 'content', page, aiPPTOutline.value?.theme_color)
+              elements: (slide.elements && slide.elements.length > 0) ? slide.elements : getLayoutCoords(slide.layout_style || page.layout_style || 'content', page, aiPPTThemeColor.value)
             };
           });
           aiPPTAssembledPages.value = assembled;
