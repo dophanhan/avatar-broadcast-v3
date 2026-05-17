@@ -5229,40 +5229,6 @@ ${sentencesList}
           });
         }
         async function initSDK(authData) {
-          // === 彻底清理所有非播报 canvas 和引用，防 WebGL context 冲突 ===
-          
-          // 1. 关闭所有 PPT 预览/编辑 UI 状态
-          showPptPreview.value = false;
-          previewSlidePage.value = null;
-          showSlideEditor.value = false;
-          editingSlideIdx.value = null;
-          
-          // 2. 清理编辑器临时缓存，但保留 pptConfig.pages 的播报缓存
-          (aiPPTAssembledPages.value || []).forEach(p => {
-            if (p?.renderCacheCanvas) {
-              try { p.renderCacheCanvas.width = 0; p.renderCacheCanvas.height = 0; } catch(e) {}
-              p.renderCacheCanvas = null;
-            }
-          });
-          
-          // 3. 销毁 pptPreviewCanvas
-          if (pptPreviewCanvas.value) {
-            const pctx = pptPreviewCanvas.value.getContext('2d');
-            if (pctx) pctx.clearRect(0, 0, pptPreviewCanvas.value.width, pptPreviewCanvas.value.height);
-            pptPreviewCanvas.value.width = 0;
-            pptPreviewCanvas.value.height = 0;
-          }
-          
-          // 4. 重置 compositeCanvas
-          if (compositeCanvas.value) {
-            compositeCanvas.value.width = canvasSize.width;
-            compositeCanvas.value.height = canvasSize.height;
-          }
-          
-          // 6. 等 Vue/DOM 稳定
-          await nextTick();
-          await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-
           if (sdkInstance) {
             sdkInstance.stop();
             sdkInstance.destroy();
@@ -5351,34 +5317,14 @@ ${sentencesList}
               add_nonsemantic: 1
             }
           });
-          
-          // 宿主隔离：从 DOM 树摘出，挂到 body 顶层，加硬隔离样式
-          let host = document.getElementById('digital-human-container');
-          if (!host) {
-            host = document.createElement('div');
-            host.id = 'digital-human-container';
-          }
-          if (host.parentNode) host.parentNode.removeChild(host);
-          document.body.appendChild(host);
-          host.style.cssText = [
-            'all: initial',
-            'position: fixed', 'left: -99999px', 'top: -99999px',
-            'width: 1px', 'height: 1px',
-            'opacity: 0', 'pointer-events: none', 'z-index: -1',
-            'transform: none', 'filter: none',
-          ].join(';');
-          host.innerHTML = '';
-          console.log('digital-human-container isolated:', host.style.cssText);
-
-          await sdkInstance.start({ wrapper: host });
+          await sdkInstance.start({
+            wrapper: document.getElementById('digital-human-container')
+          });
           await waitForVideoElement();
-          avatarSourceDom = host?.querySelector('video') ||
-                            document.querySelector('#digital-human-container video') ||
-                            host?.querySelector('canvas') ||
-                            document.querySelector('#digital-human-container canvas');
+          avatarSourceDom = document.querySelector('#digital-human-container canvas') ||
+                            document.querySelector('#digital-human-container video');
           addLog(`✅ 数字人 DOM 已缓存:${avatarSourceDom?.tagName || '未找到'}`, 'success');
-          console.log('avatarSourceDom:', avatarSourceDom?.tagName, avatarSourceDom?.width, avatarSourceDom?.height, avatarSourceDom?.readyState);
-          const videoEl = host?.querySelector('video') || document.querySelector('#digital-human-container video');
+          const videoEl = document.querySelector('#digital-human-container video');
           if (videoEl) {
             videoEl.muted = false;
             videoEl.volume = 1.0;
