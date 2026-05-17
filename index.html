@@ -4766,7 +4766,8 @@ ${sentencesList}
               ctx.fillRect(0, 0, canvas.width, canvas.height);
               if (broadcastMode.value === 'horizontal' && pptConfig.imported && pageTurningConfirmed.value) {
                 const currentPageData = pptConfig.pages.find(item => item.page_num === currentPptPage.value);
-                if (currentPageData?.renderCacheCanvas) {
+                const pptDrawable = currentPageData?.renderCacheCanvas || currentPageData?.page_image;
+                if (pptDrawable) {
                   const pptW = 1440;
                   const pptH = 810;
                   const startX = 40;
@@ -4776,13 +4777,15 @@ ${sentencesList}
                   ctx.shadowBlur = 20;
                   ctx.shadowOffsetX = 10;
                   ctx.shadowOffsetY = 10;
-                  ctx.drawImage(currentPageData.renderCacheCanvas, startX, startY, pptW, pptH);
+                  ctx.drawImage(pptDrawable, startX, startY, pptW, pptH);
                   ctx.restore();
                 }
               }
               if (broadcastMode.value === 'horizontal') {
                 const avatarW = 400;
-                const avatarH = (avatarSourceDom.height / avatarSourceDom.width) * avatarW || 711;
+                const srcW = avatarSourceDom.videoWidth || avatarSourceDom.width || 1080;
+                const srcH = avatarSourceDom.videoHeight || avatarSourceDom.height || 1920;
+                const avatarH = (srcH / srcW) * avatarW || 711;
                 const posX = 1920 - avatarW - 20;
                 const posY = 40 + 810 - avatarH;
                 ctx.drawImage(avatarSourceDom, posX, posY, avatarW, avatarH);
@@ -5228,14 +5231,12 @@ ${sentencesList}
           showSlideEditor.value = false;
           editingSlideIdx.value = null;
           
-          // 2. 清理业务对象上的 renderCacheCanvas 引用
-          [pptConfig.pages, aiPPTAssembledPages.value].forEach(list => {
-            (list || []).forEach(p => {
-              if (p?.renderCacheCanvas) {
-                try { p.renderCacheCanvas.width = 0; p.renderCacheCanvas.height = 0; } catch(e) {}
-                p.renderCacheCanvas = null;
-              }
-            });
+          // 2. 清理编辑器临时缓存，但保留 pptConfig.pages 的播报缓存
+          (aiPPTAssembledPages.value || []).forEach(p => {
+            if (p?.renderCacheCanvas) {
+              try { p.renderCacheCanvas.width = 0; p.renderCacheCanvas.height = 0; } catch(e) {}
+              p.renderCacheCanvas = null;
+            }
           });
           
           // 3. 销毁 pptPreviewCanvas
@@ -5325,8 +5326,8 @@ ${sentencesList}
             },
             avatar: {
               avatar_id: authData.avatarId || config.roleId,
-              width: 1080,
-              height: 1920,
+              width: broadcastMode.value === 'horizontal' ? 1920 : 1080,
+              height: broadcastMode.value === 'horizontal' ? 1080 : 1920,
               audio_format: 1
             },
             tts: {
