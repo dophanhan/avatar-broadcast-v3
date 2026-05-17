@@ -10,7 +10,6 @@
   <meta http-equiv="Expires" content="0">
   <script src="https://unpkg.com/vue@3.4.21/dist/vue.global.prod.js"></script>
   <script src="https://unpkg.com/mp4box@0.5.2/dist/mp4box.all.min.js"></script>
-  <script src="https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script type="module">
     import { PlayerEvents, default as AvatarSDK } from './sdk/avatar-sdk-web/index.js';
     window.AVATAR_SDK = { AvatarSDK, PlayerEvents };
@@ -2725,7 +2724,18 @@
 
 
         async function renderSlideToCanvas(page, canvasEl) {
-          if (!page || !canvasEl || typeof html2canvas === 'undefined') return;
+          if (!page || !canvasEl) return;
+          // html2canvas 按需加载，避免污染讯飞 SDK 视频渲染管线
+          if (typeof html2canvas === 'undefined') {
+            await new Promise((resolve, reject) => {
+              const s = document.createElement('script');
+              s.src = 'https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js';
+              s.onload = resolve;
+              s.onerror = reject;
+              document.head.appendChild(s);
+            });
+          }
+          if (typeof html2canvas === 'undefined') return;
           const offscreenHost = document.createElement('div');
           offscreenHost.style.position = 'fixed';
           offscreenHost.style.left = '-99999px';
@@ -5412,18 +5422,6 @@ ${sentencesList}
               throw new Error(authData.msg || '鉴权失败');
             }
             addLog('鉴权信息获取成功', 'success');
-            // 播报前预构建所有 PPT 背景缓存，避免播报中动态 html2canvas
-            if (broadcastMode.value === 'horizontal' && pptConfig.imported && pageTurningConfirmed.value) {
-              addLog('正在预生成 PPT 背景缓存...', 'info');
-              for (const pg of pptConfig.pages || []) {
-                if (!pg.renderCacheCanvas) {
-                  const tc = document.createElement('canvas');
-                  await renderSlideToCanvas(pg, tc);
-                  pg.renderCacheCanvas = tc;
-                }
-              }
-              addLog('PPT 背景缓存完成', 'success');
-            }
             await initSDK(authData.data);
             const sentences = splitSentences(config.text);
             totalSentences.value = sentences.length;
