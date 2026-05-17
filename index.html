@@ -1313,7 +1313,7 @@
   </style>
 </head>
 <body>
-  <div id="digital-human-host" style="width:1px;height:1px;opacity:0;position:fixed;top:-9999px;left:-9999px;z-index:-999;"></div>
+  <div id="digital-human-container" style="width:1px;height:1px;opacity:0;position:fixed;top:-9999px;left:-9999px;z-index:-999;"></div>
   <div id="app">
     <div class="container">
       <!-- 1. 顶部标题栏 -->
@@ -5029,7 +5029,7 @@ ${sentencesList}
           
           const startRecordingWhenReady = () => {
             let audioStream = null;
-            const videoEl = document.querySelector('#digital-human-host video');
+            const videoEl = document.querySelector('#digital-human-container video');
             const allAudios = document.querySelectorAll('audio');
             if (videoEl && videoEl.readyState >= 3 && !videoEl.muted) {
               try {
@@ -5213,7 +5213,7 @@ ${sentencesList}
                 resolve();
                 return;
               }
-              const videoEl = document.querySelector('#digital-human-host video');
+              const videoEl = document.querySelector('#digital-human-container video');
               if (videoEl && videoEl.readyState >= 2 && videoEl.videoWidth > 0) {
                 addLog(`Video 元素就绪 (${videoEl.videoWidth}x${videoEl.videoHeight})`, 'success');
                 resolve();
@@ -5349,19 +5349,19 @@ ${sentencesList}
             }
           });
           
-          // 每次重建独立 wrapper，避免旧 canvas 残留导致 WebGL context 冲突
-          const host = document.getElementById('digital-human-host');
+          // 兼容 V2：保持固定容器，只清空内部节点，不重建 wrapper
+          const host = document.getElementById('digital-human-container');
           if (host) host.innerHTML = '';
-          const sdkWrapper = document.createElement('div');
-          sdkWrapper.style.cssText = 'width:1px;height:1px;opacity:0;position:fixed;top:-9999px;left:-9999px;z-index:-999';
-          if (host) host.appendChild(sdkWrapper);
-          
-          await sdkInstance.start({ wrapper: sdkWrapper || host });
+
+          await sdkInstance.start({ wrapper: host });
           await waitForVideoElement();
-          const lookupEl = sdkWrapper || host;
-          avatarSourceDom = lookupEl.querySelector('canvas') || lookupEl.querySelector('video');
+          avatarSourceDom = host?.querySelector('video') ||
+                            document.querySelector('#digital-human-container video') ||
+                            host?.querySelector('canvas') ||
+                            document.querySelector('#digital-human-container canvas');
           addLog(`✅ 数字人 DOM 已缓存:${avatarSourceDom?.tagName || '未找到'}`, 'success');
-          const videoEl = lookupEl.querySelector('video');
+          console.log('avatarSourceDom:', avatarSourceDom?.tagName, avatarSourceDom?.width, avatarSourceDom?.height, avatarSourceDom?.readyState);
+          const videoEl = host?.querySelector('video') || document.querySelector('#digital-human-container video');
           if (videoEl) {
             videoEl.muted = false;
             videoEl.volume = 1.0;
