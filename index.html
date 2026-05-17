@@ -4766,23 +4766,18 @@ ${sentencesList}
               ctx.fillRect(0, 0, canvas.width, canvas.height);
               if (broadcastMode.value === 'horizontal' && pptConfig.imported && pageTurningConfirmed.value) {
                 const currentPageData = pptConfig.pages.find(item => item.page_num === currentPptPage.value);
-                if (currentPageData) {
-                  if (!currentPageData.renderCacheCanvas) {
-                    return; // 播报中不动态创建 canvas，避免污染 SDK 环境
-                  }
-                  if (currentPageData.renderCacheCanvas) {
-                    const pptW = 1440;
-                    const pptH = 810;
-                    const startX = 40;
-                    const startY = 40;
-                    ctx.save();
-                    ctx.shadowColor = 'rgba(0,0,0,0.24)';
-                    ctx.shadowBlur = 20;
-                    ctx.shadowOffsetX = 10;
-                    ctx.shadowOffsetY = 10;
-                    ctx.drawImage(currentPageData.renderCacheCanvas, startX, startY, pptW, pptH);
-                    ctx.restore();
-                  }
+                if (currentPageData?.renderCacheCanvas) {
+                  const pptW = 1440;
+                  const pptH = 810;
+                  const startX = 40;
+                  const startY = 40;
+                  ctx.save();
+                  ctx.shadowColor = 'rgba(0,0,0,0.24)';
+                  ctx.shadowBlur = 20;
+                  ctx.shadowOffsetX = 10;
+                  ctx.shadowOffsetY = 10;
+                  ctx.drawImage(currentPageData.renderCacheCanvas, startX, startY, pptW, pptH);
+                  ctx.restore();
                 }
               }
               if (broadcastMode.value === 'horizontal') {
