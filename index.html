@@ -4733,6 +4733,21 @@ ${sentencesList}
           }
           addLog('🎨 启动强制绘制模式 (25fps 固定帧率，无视后台降频)...', 'info');
           const FRAME_INTERVAL = 40;
+          const drawContain = (ctx, source, dx, dy, dw, dh, options = {}) => {
+            if (!source) return;
+            const sw = source.videoWidth || source.naturalWidth || source.width || 0;
+            const sh = source.videoHeight || source.naturalHeight || source.height || 0;
+            if (!sw || !sh) return;
+            const scale = Math.min(dw / sw, dh / sh);
+            const rw = sw * scale;
+            const rh = sh * scale;
+            const ox = dx + (dw - rw) / 2;
+            const oy = dy + (dh - rh) / 2;
+            if (options.clear !== false) {
+              ctx.clearRect(dx, dy, dw, dh);
+            }
+            ctx.drawImage(source, ox, oy, rw, rh);
+          };
           compositeInterval = setInterval(() => {
             if (!isRecording.value && !isBroadcasting.value) {
               setTimeout(() => {
@@ -4766,29 +4781,28 @@ ${sentencesList}
               ctx.fillRect(0, 0, canvas.width, canvas.height);
               if (broadcastMode.value === 'horizontal' && pptConfig.imported && pageTurningConfirmed.value) {
                 const currentPageData = pptConfig.pages.find(item => item.page_num === currentPptPage.value);
-                const pptDrawable = currentPageData?.renderCacheCanvas || currentPageData?.page_image;
+                const pptDrawable = currentPageData?.renderCacheCanvas || currentPageData?.page_image || currentPageData?.inlineSnapshotCanvas;
                 if (pptDrawable) {
                   const pptW = 1440;
                   const pptH = 810;
                   const startX = 40;
                   const startY = 40;
                   ctx.save();
+                  ctx.fillStyle = '#ffffff';
+                  ctx.fillRect(startX, startY, pptW, pptH);
                   ctx.shadowColor = 'rgba(0,0,0,0.24)';
                   ctx.shadowBlur = 20;
                   ctx.shadowOffsetX = 10;
                   ctx.shadowOffsetY = 10;
-                  ctx.drawImage(pptDrawable, startX, startY, pptW, pptH);
+                  drawContain(ctx, pptDrawable, startX, startY, pptW, pptH, { clear: false });
                   ctx.restore();
                 }
               }
               if (broadcastMode.value === 'horizontal') {
-                const avatarW = 400;
-                const srcW = avatarSourceDom.videoWidth || avatarSourceDom.width || 1080;
-                const srcH = avatarSourceDom.videoHeight || avatarSourceDom.height || 1920;
-                const avatarH = (srcH / srcW) * avatarW || 711;
-                const posX = 1920 - avatarW - 20;
-                const posY = 40 + 810 - avatarH;
-                ctx.drawImage(avatarSourceDom, posX, posY, avatarW, avatarH);
+                const avatarBox = { x: 1500, y: 40, w: 400, h: 810 };
+                ctx.save();
+                drawContain(ctx, avatarSourceDom, avatarBox.x, avatarBox.y, avatarBox.w, avatarBox.h, { clear: false });
+                ctx.restore();
               } else {
                 ctx.drawImage(avatarSourceDom, 0, 0, canvas.width, canvas.height);
               }
@@ -5326,8 +5340,9 @@ ${sentencesList}
             },
             avatar: {
               avatar_id: authData.avatarId || config.roleId,
-              width: broadcastMode.value === 'horizontal' ? 1920 : 1080,
-              height: broadcastMode.value === 'horizontal' ? 1080 : 1920,
+              // 保持与 V2 一致的竖屏原始输出，避免横屏模式下改编码尺寸导致 SDK 播放器缩放异常 / 绿幕分屏
+              width: 1080,
+              height: 1920,
               audio_format: 1
             },
             tts: {
