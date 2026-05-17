@@ -5228,6 +5228,28 @@ ${sentencesList}
           });
         }
         async function initSDK(authData) {
+          // 销毁所有临时 canvas，防止讯飞 SDK 误复用为 WebGL 目标
+          // 1. 隐藏 pptPreviewCanvas
+          previewSlidePage.value = null;
+          showPptPreview.value = false;
+          if (pptPreviewCanvas.value) {
+            const ctx = pptPreviewCanvas.value.getContext('2d');
+            if (ctx) ctx.clearRect(0, 0, pptPreviewCanvas.value.width, pptPreviewCanvas.value.height);
+            pptPreviewCanvas.value.width = 0;
+            pptPreviewCanvas.value.height = 0;
+          }
+          // 2. 移除所有动态创建的临时 canvas（html2canvas/renderCacheCanvas 残留）
+          document.querySelectorAll('canvas').forEach(c => {
+            if (c !== compositeCanvas.value && c !== pptPreviewCanvas.value) {
+              c.remove();
+            }
+          });
+          // 3. 重置 compositeCanvas
+          if (compositeCanvas.value) {
+            compositeCanvas.value.width = canvasSize.width;
+            compositeCanvas.value.height = canvasSize.height;
+          }
+
           if (sdkInstance) {
             sdkInstance.stop();
             sdkInstance.destroy();
