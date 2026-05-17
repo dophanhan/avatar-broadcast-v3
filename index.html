@@ -2614,6 +2614,7 @@
         const editingSlideIdx = ref(null);    // 正在编辑的页面索引
         const aiPPTThemeColor = ref('#1e3a8a');  // 后端返回的 theme_color
         const showPPTistEditor = ref(false);
+        const PPTIST_EDITOR_URL = 'https://7ae3b6e0.avatar-broadcast-v3.pages.dev/editor/';
         const pptistEditorUrl = ref(PPTIST_EDITOR_URL);
         const pptistFrame = ref(null);
         const pptistFrameLoaded = ref(false);
@@ -3701,8 +3702,6 @@
             openPptPreview(bg.image_url);
           }
         }
-
-        const PPTIST_EDITOR_URL = 'https://7ae3b6e0.avatar-broadcast-v3.pages.dev/editor/';
 
         function escapeHtml(value) {
           return String(value ?? '')
