@@ -5352,9 +5352,24 @@ ${sentencesList}
             }
           });
           
-          // 兼容 V2：保持固定容器，只清空内部节点，不重建 wrapper
-          const host = document.getElementById('digital-human-container');
-          if (host) host.innerHTML = '';
+          // 宿主隔离：从 DOM 树摘出，挂到 body 顶层，加硬隔离样式
+          let host = document.getElementById('digital-human-container');
+          if (!host) {
+            host = document.createElement('div');
+            host.id = 'digital-human-container';
+          }
+          if (host.parentNode) host.parentNode.removeChild(host);
+          document.body.appendChild(host);
+          host.style.cssText = [
+            'all: initial',
+            'position: fixed', 'left: -99999px', 'top: -99999px',
+            'width: 1080px', 'height: 1920px', 'overflow: hidden',
+            'opacity: 0', 'pointer-events: none', 'z-index: -1',
+            'contain: layout style paint size', 'isolation: isolate',
+            'transform: none', 'filter: none', 'perspective: none',
+          ].join(';');
+          host.innerHTML = '';
+          console.log('digital-human-container isolated:', host.style.cssText);
 
           await sdkInstance.start({ wrapper: host });
           await waitForVideoElement();
