@@ -543,7 +543,8 @@
       font-size: 16px;
       font-weight: 700;
       color: #1e293b;
-      line-height: 1.6;
+      line-height: 1.8;
+      white-space: pre-line;
     }
     .toast-item {
       padding: 12px 20px;
@@ -2691,11 +2692,21 @@
           }
           return toastItem;
         }
-        function showLoading(message = '处理中...') {
+        let loadingTimer = null;
+        function showLoading(message = '处理中...', progressive = false) {
+          if (loadingTimer) { clearInterval(loadingTimer); loadingTimer = null; }
           globalLoading.message = message;
           globalLoading.visible = true;
+          if (progressive) {
+            let count = 0;
+            loadingTimer = setInterval(() => {
+              count++;
+              globalLoading.message = message + '\n' + '⏳ 大模型还在分析中' + '·'.repeat((count % 3) + 1) + ` (${count * 30}秒)`;
+            }, 30000);
+          }
         }
         function hideLoading() {
+          if (loadingTimer) { clearInterval(loadingTimer); loadingTimer = null; }
           globalLoading.visible = false;
         }
         function closeToast(toastItem) {
@@ -4492,7 +4503,8 @@
             if (!silent) showToast('请先输入播报文本并导入 PPT', 'error');
             return;
           }
-          const loadingToast = silent ? null : showToast('正在分析 PPT 与文案，生成智能翻页节点，请稍候', 'loading');
+          if (!silent) showLoading('正在分析 PPT 与文案，生成智能翻页节点...', true);
+          const loadingToast = null;
           const sentences = splitSentences(config.text);
           currentSentences.value = sentences;
           const totalSentences = sentences.length;
@@ -4580,7 +4592,7 @@ ${sentencesList}
             }
             pageTurningNodes.value = validNodes;
             addLog(`✅ 翻页节点生成成功，共${pageTurningNodes.value.length}个节点，覆盖${assignedSentences.size}/${totalSentences}句`, 'success');
-            if (loadingToast) closeToast(loadingToast);
+            hideLoading();
             if (!silent) showToast(`翻页节点生成成功，共${pageTurningNodes.value.length}个节点`, 'success');
             // 【修复 2】缓存当前文本，用于下次播报时检测变化
             localStorage.setItem('lastTextForTurningNodes', config.text);
@@ -4588,7 +4600,7 @@ ${sentencesList}
             if (!isReset) { currentEditPage.value = 1; }
           } catch (e) {
             addLog(`❌ 翻页节点生成失败:${e.message}`, 'error');
-            if (loadingToast) closeToast(loadingToast);
+            hideLoading();
             if (!silent) showToast(`节点生成失败:${e.message}`, 'error');
           }
         }
