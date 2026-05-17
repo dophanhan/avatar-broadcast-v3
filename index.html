@@ -10,6 +10,7 @@
   <meta http-equiv="Expires" content="0">
   <script src="https://unpkg.com/vue@3.4.21/dist/vue.global.prod.js"></script>
   <script src="https://unpkg.com/mp4box@0.5.2/dist/mp4box.all.min.js"></script>
+  <script src="https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script type="module">
     import { PlayerEvents, default as AvatarSDK } from './sdk/avatar-sdk-web/index.js';
     window.AVATAR_SDK = { AvatarSDK, PlayerEvents };
@@ -511,6 +512,40 @@
       flex-direction: column;
       gap: 10px;
     }
+    .global-loading-mask {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.72);
+      z-index: 100002;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(4px);
+    }
+    .global-loading-card {
+      min-width: 320px;
+      max-width: 80vw;
+      padding: 28px 32px;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.96);
+      box-shadow: 0 18px 48px rgba(15,23,42,0.28);
+      text-align: center;
+    }
+    .global-loading-spinner {
+      width: 54px;
+      height: 54px;
+      margin: 0 auto 16px;
+      border: 4px solid #e2e8f0;
+      border-top-color: #667eea;
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+    }
+    .global-loading-text {
+      font-size: 16px;
+      font-weight: 700;
+      color: #1e293b;
+      line-height: 1.6;
+    }
     .toast-item {
       padding: 12px 20px;
       border-radius: 8px;
@@ -594,44 +629,429 @@
       gap: 12px;
     }
     .editor-canvas-stage {
-      position: relative;
       width: 100%;
       max-width: 720px;
       aspect-ratio: 16 / 9;
-      background-size: cover;
-      background-position: center;
-      border-radius: 12px;
+      background: var(--bg-color, #f8fafc);
       overflow: hidden;
+      position: relative;
+      padding: 40px 60px;
+      box-sizing: border-box;
+      border-radius: 12px;
       box-shadow: 0 12px 36px rgba(15, 23, 42, 0.18);
       user-select: none;
     }
-    .draggable-element {
-      position: absolute;
-      border-radius: 10px;
-      cursor: move;
-      user-select: none;
-    }
-    .editor-inline-image {
-      overflow: hidden;
-      box-shadow: 0 8px 20px rgba(0,0,0,0.18);
-      background: rgba(255,255,255,0.12);
-    }
-    .editor-inline-image img {
+    .editor-stage-inner {
       width: 100%;
       height: 100%;
-      object-fit: cover;
-      display: block;
-      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      position: relative;
+      z-index: 2;
     }
-    .editor-element {
-      padding: 10px 14px;
-      white-space: pre-wrap;
+    .layout-grid {
+      width: 100%;
+      height: 100%;
+    }
+    .layout-grid.left-text-right-img {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+      height: 100%;
+      align-items: stretch;
+    }
+    .layout-grid.left-img-right-text {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+      height: 100%;
+      align-items: stretch;
+    }
+    .layout-grid.comparison {
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px 40px;
+      height: 100%;
+    }
+    .layout-grid.comparison .slot-title,
+    .layout-grid.comparison .slot-subtitle {
+      grid-column: 1 / -1;
+      text-align: center;
+    }
+    .layout-grid.three-columns {
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px 20px;
+      height: 100%;
+    }
+    .layout-grid.three-columns .slot-title,
+    .layout-grid.three-columns .slot-subtitle,
+    .layout-grid.grid-4 .slot-title,
+    .layout-grid.grid-4 .slot-subtitle {
+      grid-column: 1 / -1;
+    }
+    .layout-grid.grid-4 {
+      display: grid;
+      grid-template-rows: auto auto 1fr 1fr;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px 30px;
+      height: 100%;
+    }
+    .layout-grid.data-focus {
+      display: grid;
+      grid-template-rows: auto auto 1fr 2fr;
+      gap: 12px;
+      height: 100%;
+    }
+    .layout-grid.text-only {
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      gap: 12px;
+      height: 100%;
+    }
+    .layout-grid.timeline {
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      gap: 8px;
+      height: 100%;
+    }
+    .timeline-axis {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding-left: 120px;
+      position: relative;
+      overflow-y: auto;
+    }
+    .timeline-axis::before {
+      content: '';
+      position: absolute;
+      left: 75px;
+      top: 12px;
+      bottom: 12px;
+      width: 2px;
+      background: #cbd5e1;
+      border-radius: 1px;
+    }
+    .timeline-node {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      position: relative;
+    }
+    .timeline-node::before {
+      content: '';
+      position: absolute;
+      left: -49px;
+      top: 7px;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--theme-color, #2563eb);
+      border: 2px solid #fff;
+      box-shadow: 0 0 0 2px var(--theme-color, #2563eb);
+      z-index: 1;
+    }
+    .timeline-label {
+      min-width: 90px;
+      text-align: right;
+      font-size: 0.75vw;
+      font-weight: 600;
+      color: var(--theme-color, #2563eb);
+      white-space: nowrap;
+      margin-top: 2px;
+      line-height: 1.4;
+    }
+    .timeline-text {
+      font-size: 1.0vw;
+      color: #334155;
+      line-height: 1.4;
+      padding: 2px 0;
+      word-break: break-word;
+    }
+    .layout-cover,
+    .layout-ending {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      text-align: center;
+      gap: 12px;
+    }
+    /* Global style presets - exposed as CSS variables */
+    .global-style-tech_blue {
+      --gs-primary: #165DFF;
+      --gs-secondary: #36CFC9;
+      --gs-bg: #F8FAFC;
+      --gs-card: #FFFFFF;
+      --gs-text-main: #1E293B;
+      --gs-text-sub: #64748B;
+      --gs-border: #E2E8F0;
+      --gs-title-size: 2.6vw;
+      --gs-body-size: 1.1vw;
+      --gs-cover-bg: linear-gradient(135deg, #0F172A 0%, #1E40AF 100%);
+      font-family: Inter,Microsoft YaHei,PingFang SC,sans-serif;
+    }
+    .global-style-business_minimal {
+      --gs-primary: #0F172A;
+      --gs-secondary: #3B82F6;
+      --gs-bg: #FFFFFF;
+      --gs-card: #F8FAFC;
+      --gs-text-main: #0F172A;
+      --gs-text-sub: #475569;
+      --gs-border: #E2E8F0;
+      --gs-title-size: 2.5vw;
+      --gs-body-size: 1.1vw;
+      --gs-cover-bg: linear-gradient(135deg, #F1F5F9 0%, #E2E8F0 100%);
+      font-family: Inter,Microsoft YaHei,PingFang SC,sans-serif;
+    }
+    .global-style-formal_official {
+      --gs-primary: #C8102E;
+      --gs-secondary: #003366;
+      --gs-bg: #FFFFFF;
+      --gs-card: #F5F7FA;
+      --gs-text-main: #1A1A1A;
+      --gs-text-sub: #4D4D4D;
+      --gs-border: #D9D9D9;
+      --gs-title-size: 2.8vw;
+      --gs-body-size: 1.2vw;
+      --gs-cover-bg: linear-gradient(135deg, #FEF2F2 0%, #F1F5F9 100%);
+      font-family: SimHei,SimSun,serif;
+    }
+    .global-style-fresh_light {
+      --gs-primary: #10B981;
+      --gs-secondary: #F59E0B;
+      --gs-bg: #F0FDF4;
+      --gs-card: #FFFFFF;
+      --gs-text-main: #1F2937;
+      --gs-text-sub: #6B7280;
+      --gs-border: #D1FAE5;
+      --gs-title-size: 2.6vw;
+      --gs-body-size: 1.1vw;
+      --gs-cover-bg: linear-gradient(135deg, #ECFDF5 0%, #F0FDF4 100%);
+      font-family: Inter,Microsoft YaHei,PingFang SC,sans-serif;
+    }
+    .global-style-dark_elegant {
+      --gs-primary: #FBBF24;
+      --gs-secondary: #94A3B8;
+      --gs-bg: #0A0A0A;
+      --gs-card: #171717;
+      --gs-text-main: #F5F5F5;
+      --gs-text-sub: #A3A3A3;
+      --gs-border: #262626;
+      --gs-title-size: 2.9vw;
+      --gs-body-size: 1.2vw;
+      --gs-cover-bg: linear-gradient(135deg, #020617 0%, #1E293B 100%);
+      font-family: Inter,Microsoft YaHei,PingFang SC,sans-serif;
+    }
+    .global-style-campus_vibrant {
+      --gs-primary: #8B5CF6;
+      --gs-secondary: #6B7280;
+      --gs-bg: #FAF5FF;
+      --gs-card: #FFFFFF;
+      --gs-text-main: #1F2937;
+      --gs-text-sub: #6B7280;
+      --gs-border: #E9D5FF;
+      --gs-title-size: 2.8vw;
+      --gs-body-size: 1.2vw;
+      --gs-cover-bg: linear-gradient(135deg, #EDE9FE 0%, #FCE7F3 100%);
+      font-family: Inter,Microsoft YaHei,PingFang SC,sans-serif;
+    }
+    .global-style-oriental_classic {
+      --gs-primary: #8B4513;
+      --gs-secondary: #6B4423;
+      --gs-bg: #FDF6E3;
+      --gs-card: #FFFAF0;
+      --gs-text-main: #2C1810;
+      --gs-text-sub: #6B4423;
+      --gs-border: #E6D5B8;
+      --gs-title-size: 2.9vw;
+      --gs-body-size: 1.2vw;
+      --gs-cover-bg: linear-gradient(135deg, #FDF6E3 0%, #F5E6C8 100%);
+      font-family: SimSun,KaiTi,serif;
+    }
+    .editor-bg-layer {
+      position: absolute;
+      inset: 0;
+      background-size: cover;
+      background-position: center;
+      opacity: 0.22;
+      z-index: 0;
+    }
+    .editor-bg-layer.cover,
+    .editor-bg-layer.ending {
+      opacity: 0.38;
+    }
+    .editor-layout-shell {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+    .slot-title {
+      font-size: var(--title-size, 2.4vw);
+      font-weight: var(--font-weight, bold);
+      color: var(--title-color, var(--theme-color, #0f172a));
+      margin: 0;
+      line-height: 1.2;
+    }
+    .slot-subtitle {
+      font-size: 1.3vw;
+      color: #64748b;
+      margin: 4px 0 16px;
       line-height: 1.35;
-      min-width: 48px;
     }
-    .draggable-element.active {
-      outline: 2px solid #3b82f6;
-      box-shadow: 0 0 0 4px rgba(59,130,246,0.15);
+    .slot-bullets {
+      font-size: var(--body-size, 1.1vw);
+      color: var(--body-color, #334155);
+      font-weight: var(--font-weight, 400);
+      line-height: 1.8;
+      padding-left: 1.2em;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .slot-card {
+      background: rgba(255,255,255,0.7);
+      border: 1px solid rgba(226,232,240,0.85);
+      border-radius: 16px;
+      padding: 16px;
+      backdrop-filter: blur(4px);
+      overflow: hidden;
+    }
+    .slot-column,
+    .content-col,
+    .img-col,
+    .slot-image-wrap {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .slot-image-wrap,
+    .img-col {
+      justify-content: center;
+      align-items: center;
+    }
+    .slot-image {
+      width: 100%;
+      height: 100%;
+      object-fit: var(--image-fit, contain);
+      object-position: center var(--image-position-y, 50%);
+      border-radius: 8px;
+      cursor: pointer;
+      background: rgba(255,255,255,0.35);
+    }
+    .slot-image-wrap,
+    .img-col {
+      position: relative;
+    }
+    .image-replace-overlay {
+      position: absolute;
+      inset: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(15, 23, 42, 0.35);
+      color: #fff;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+      z-index: 2;
+    }
+    .slot-card:hover .image-replace-overlay,
+    .slot-image-wrap:hover .image-replace-overlay,
+    .img-col:hover .image-replace-overlay {
+      opacity: 1;
+    }
+    .floating-toolbar {
+      position: fixed;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 12px 32px rgba(15, 23, 42, 0.2);
+      padding: 8px;
+      display: flex;
+      gap: 8px;
+      z-index: 100001;
+    }
+    .floating-toolbar button {
+      border: none;
+      background: #f8fafc;
+      color: #334155;
+      padding: 6px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .floating-toolbar button:hover {
+      background: #e2e8f0;
+    }
+    .outline-page-item {
+      position: relative;
+      padding-left: 34px !important;
+      cursor: grab !important;
+      user-select: none;
+    }
+    .outline-page-item::before {
+      content: '⋮⋮';
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #94a3b8;
+      font-size: 16px;
+      letter-spacing: -1px;
+    }
+    .outline-page-item:active {
+      cursor: grabbing !important;
+    }
+    .slot-image.placeholder {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 220px;
+      color: #64748b;
+      border: 2px dashed #cbd5e1;
+      font-size: 14px;
+    }
+    .slot-richtext {
+      white-space: pre-wrap;
+      color: #334155;
+      line-height: 1.7;
+      font-size: 1vw;
+    }
+    .slot-divider {
+      width: 100%;
+      height: 4px;
+      border-radius: 999px;
+      background: var(--theme-color);
+      opacity: 0.85;
+    }
+    .slot-grid-card {
+      min-height: 0;
+    }
+    [contenteditable]:empty {
+      min-height: 1.5em;
+      min-width: 50px;
+      display: inline-block;
+      cursor: text;
+    }
+    [contenteditable]:empty::before {
+      content: '点击输入...';
+      color: #94a3b8;
+      pointer-events: none;
+      font-style: italic;
+    }
+    [contenteditable]:focus {
+      outline: 2px solid var(--accent-color);
+      border-radius: 4px;
     }
     .editor-side-panel {
       width: 320px;
@@ -664,6 +1084,29 @@
       gap: 8px;
       flex-wrap: wrap;
       margin-top: 12px;
+    }
+    .highlight-chip-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .highlight-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      font-size: 12px;
+      color: #334155;
+    }
+    .history-toolbar {
+      display:flex;
+      gap:8px;
+      margin-top:8px;
+      flex-wrap:wrap;
     }
     
     /* ========== 弹窗样式 ========== */
@@ -1143,9 +1586,14 @@
                   <!-- 页面列表 -->
                   <div style="flex:0 0 260px; max-height:420px; overflow-y:auto; background:#fff; border-radius:8px; border:1px solid #e2e8f0;">
                     <div v-for="(page, idx) in aiPPTOutline.pages" :key="idx"
+                      class="outline-page-item"
+                      draggable="true"
+                      @dragstart="handleOutlineDragStart(idx)"
+                      @dragover.prevent="handleOutlineDragOver(idx)"
+                      @drop="handleOutlineDrop(idx)"
                       @click="aiPPTSelectedPage = idx"
                       :style="{
-                        padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9',
+                        padding: '10px 14px', borderBottom: '1px solid #f1f5f9',
                         background: aiPPTSelectedPage === idx ? '#eff6ff' : '#fff',
                         borderLeft: aiPPTSelectedPage === idx ? '3px solid #3b82f6' : '3px solid transparent'
                       }">
@@ -1167,6 +1615,7 @@
                       <option value="three_columns">📐 三列并排</option>
                       <option value="grid_4">🔲 四宫格</option>
                       <option value="data_focus">📈 数据聚焦</option>
+                      <option value="timeline">🕐 时间轴</option>
                       <option value="ending">📄 结尾页</option>
                     </select>
                     <div style="font-size:13px; font-weight:600; color:#475569; margin-bottom:4px;">标题</div>
@@ -1192,77 +1641,35 @@
               <div v-if="aiPPTOutline && aiPPTOutline.pages && aiPPTOutline.pages.length > 0" style="margin-bottom:12px;">
                 <button class="btn btn-success" @click="generatePPTBackgrounds()" :disabled="aiPPTBackgroundsLoading"
                   style="padding:10px 24px; border-radius:8px; font-size:14px; background:linear-gradient(135deg,#667eea,#764ba2); color:#fff; border:none;">
-                  {{ aiPPTBackgroundsLoading ? '⏳ 生成背景图中...' : '🎨 生成背景图（每3页一组并发）' }}
+                  {{ aiPPTBackgroundsLoading ? '⏳ 生成页面视觉中...' : '🎨 批量生成页面视觉' }}
                 </button>
                 <span style="font-size:12px; color:#94a3b8; margin-left:8px;">模型：{{ aiPPTImageModel === 'doubao' ? '豆包 Seedream' : 'GPT Image 2' }}</span>
               </div>
 
-              <!-- 母版背景图预览 -->
-              <div v-if="aiPPTBackgrounds && aiPPTBackgrounds.length > 0" style="margin-top:16px;">
-                <div style="font-size:14px; font-weight:600; color:#475569; margin-bottom:8px;">母版背景图（封面 | 正文 | 尾页）</div>
-                <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:12px;">
-                  <div v-for="(bg, idx) in aiPPTBackgrounds" :key="idx"
-                    style="background:#fff; border-radius:8px; border:1px solid #e2e8f0; overflow:hidden; cursor:pointer;"
-                    @click="openGeneratedImage(bg)">
-                    <div style="padding:6px 10px; font-size:12px; font-weight:600; color:#1e293b; text-align:center; background:#f1f5f9;">
-                      {{ bg.key === 'cover' ? '📔 封面' : bg.key === 'body' ? '📄 正文' : '📄 尾页' }}
-                    </div>
-                    <div v-if="bg.status === 'loading'" style="padding:40px 20px; text-align:center; background:#f8fafc;">
-                      <div style="width:40px; height:40px; margin:0 auto 8px; border:3px solid #e2e8f0; border-top-color:#3b82f6; border-radius:50%; animation:spin 0.8s linear infinite;"></div>
-                      <div style="font-size:12px; color:#94a3b8;">生成中...</div>
-                    </div>
-                    <div v-else-if="bg.status === 'failed'" style="padding:40px 20px; text-align:center; background:#fef2f2;">
-                      <div style="font-size:24px; margin-bottom:4px;">❌</div>
-                      <div style="font-size:12px; color:#ef4444;">生成失败</div>
-                      <button @click.stop="regeneratePage(idx)" style="margin-top:6px; font-size:11px; color:#3b82f6; background:none; border:1px solid #3b82f6; border-radius:4px; padding:2px 8px; cursor:pointer;">重试</button>
-                    </div>
-                    <img v-else :src="bg.image_url" style="width:100%; aspect-ratio:16/9; object-fit:cover;" />
-                    <div style="padding:6px 10px; font-size:12px; color:#64748b; display:flex; justify-content:space-between; align-items:center;">
-                      <span>{{ bg.status === 'done' ? '✅' : '⏳' }}</span>
-                      <div style="display:flex; gap:4px;">
-                        <button @click.stop="openGeneratedImage(bg)" style="font-size:10px; color:#3b82f6; background:none; border:1px solid #3b82f6; border-radius:3px; padding:1px 6px; cursor:pointer;">🔍</button>
-                        <button @click.stop="regeneratePage(idx)" style="font-size:10px; color:#f59e0b; background:none; border:1px solid #f59e0b; border-radius:3px; padding:1px 6px; cursor:pointer;">🔄</button>
-                      </div>
-                    </div>
-                  </div>
+              <div v-if="showPPTistEditor" style="margin-top:16px; border-radius:8px; overflow:hidden; border:2px solid #8b5cf6;">
+                <div style="background:#8b5cf6; color:#fff; padding:8px 16px; font-size:13px; display:flex; justify-content:space-between; align-items:center;">
+                  <span>📝 专业编辑器精修</span>
+                  <button @click="confirmPPTistAndBroadcast()" style="background:#10b981; color:#fff; border:none; padding:6px 18px; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer;">✅ 确认并使用</button>
                 </div>
+                <iframe 
+                  ref="pptistFrame"
+                  :src="pptistEditorUrl"
+                  style="width:100%; height:75vh; border:none;"
+                  @load="onPPTistFrameLoaded"
+                ></iframe>
+              </div>
 
-                <div v-if="aiPPTAssembledPages.length > 0" style="margin-top:16px; background:#f0fdf4; border-radius:8px; padding:16px; border:1px solid #bbf7d0;">
-                  <div style="font-weight:700; color:#166534; margin-bottom:12px;">✅ 完整PPT页面 ({{aiPPTAssembledPages.length}}页)</div>
-                  <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:12px;">
-                    <div v-for="(p, idx) in aiPPTAssembledPages" :key="idx" style="background:#fff; border-radius:8px; overflow:hidden; border:1px solid #e2e8f0;">
-                      <div style="position:relative; aspect-ratio:16/9; background-size:cover; background-position:center;" :style="{backgroundImage: 'url('+p.background_url+')'}">
-                        <div style="position:absolute; top:4px; left:4px; background:rgba(0,0,0,0.6); color:#fff; padding:2px 8px; border-radius:4px; font-size:11px;">第{{p.page_number}}页</div>
-                        <div style="position:absolute; right:4px; top:4px; background:rgba(255,255,255,0.8); color:#0f172a; padding:2px 8px; border-radius:4px; font-size:11px;">{{ p.layout_style }}</div>
-                        <div v-if="showSlideDivider(p)" :style="getThumbnailDividerStyle(p)"></div>
-                        <div v-for="(el, eidx) in (p.elements || [])" :key="eidx"
-                          :style="getThumbnailElementStyle(el)">
-                          {{ el.text }}
-                        </div>
-                      </div>
-                      <div style="padding:8px; font-size:12px; color:#475569;">
-                        <div style="font-weight:600;">{{p.title?.substring(0,20)}}</div>
-                        <div style="display:flex; gap:4px; margin-top:6px;">
-                          <button @click="openSlidePreview(idx)" style="font-size:10px; color:#3b82f6; background:none; border:1px solid #3b82f6; border-radius:3px; padding:1px 6px; cursor:pointer;">🔍</button>
-                          <button @click="openSlideEditor(idx)" style="font-size:10px; color:#10b981; background:none; border:1px solid #10b981; border-radius:3px; padding:1px 6px; cursor:pointer;">✏️</button>
-                          <button v-if="p.inline_image_url" @click="regenerateInlineImage(idx)" style="font-size:10px; color:#f59e0b; background:none; border:1px solid #f59e0b; border-radius:3px; padding:1px 6px; cursor:pointer;">🔄</button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
-                <!-- 导出 PPTX -->
-                <div style="margin-top:16px; display:flex; gap:12px; flex-wrap:wrap;">
-                  <button class="btn" @click="exportPPTX()" :disabled="aiPPTExportLoading"
-                    style="padding:12px 28px; border-radius:10px; font-size:15px; font-weight:600; background:linear-gradient(135deg,#10b981,#059669); color:#fff; border:none;">
-                    {{ aiPPTExportLoading ? '⏳ 导出中...' : '📦 导出 PPTX 下载' }}
-                  </button>
-                  <button v-if="aiPPTAssembledPages.length > 0" class="btn" @click="useGeneratedPPTForBroadcast()"
-                    style="padding:12px 28px; border-radius:10px; font-size:15px; font-weight:600; background:linear-gradient(135deg,#f59e0b,#d97706); color:#fff; border:none;">
-                    🎬 用此PPT播报
-                  </button>
-                </div>
+              <!-- 导出 PPTX -->
+              <div style="margin-top:16px; display:flex; gap:12px; flex-wrap:wrap;">
+                <button class="btn" @click="exportPPTX()" :disabled="aiPPTExportLoading"
+                  style="padding:12px 28px; border-radius:10px; font-size:15px; font-weight:600; background:linear-gradient(135deg,#10b981,#059669); color:#fff; border:none;">
+                  {{ aiPPTExportLoading ? '⏳ 导出中...' : '📦 导出 PPTX 下载' }}
+                </button>
+                <button v-if="aiPPTAssembledPages.length > 0" class="btn" @click="useGeneratedPPTForBroadcast()"
+                  style="padding:12px 28px; border-radius:10px; font-size:15px; font-weight:600; background:linear-gradient(135deg,#f59e0b,#d97706); color:#fff; border:none;">
+                  🎬 用此PPT播报
+                </button>
+              </div>
               </div>
             </div>
           </div>
@@ -1436,110 +1843,265 @@
       <div class="toast-container">
         <div v-for="(toast, index) in toastList" :key="index" :class="['toast-item', toast.type]">{{ toast.message }}</div>
       </div>
+      <div v-if="globalLoading.visible" v-cloak class="global-loading-mask">
+        <div class="global-loading-card">
+          <div class="global-loading-spinner"></div>
+          <div class="global-loading-text">{{ globalLoading.message }}</div>
+        </div>
+      </div>
       <!-- PPT 大图预览弹窗 -->
       <div class="ppt-preview-modal" v-if="showPptPreview" @click.self="showPptPreview=false">
         <canvas v-if="previewSlidePage" ref="pptPreviewCanvas" class="ppt-preview-canvas"></canvas>
-        <img v-else :src="currentPreviewPptImg" alt="PPT 大图预览" class="preview-img">
+        <img v-else-if="currentPreviewPptImg" :src="currentPreviewPptImg" alt="PPT 大图预览" class="preview-img" style="max-width:90vw;max-height:85vh;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+        <div v-else style="color:#fff;text-align:center;padding:40px;">无法加载预览</div>
         <button class="preview-close" @click="showPptPreview=false">×</button>
       </div>
 
       <div class="editor-modal-mask" v-if="showSlideEditor" @click.self="closeSlideEditor()">
         <div class="editor-modal-box" @click.stop>
           <div class="editor-canvas-panel">
+            <div v-show="showToolbar" class="floating-toolbar" :style="{ top: toolbarY + 'px', left: toolbarX + 'px' }">
+              <button @click="formatText('bold')"><b>B</b></button>
+              <button @click="formatText('hiliteColor', '#ffeb3b')">高亮</button>
+              <button @click="formatText('foreColor', '#e53e3e')">飘红</button>
+              <button @click="adjustSelectionFontSize(2)">A+</button>
+              <button @click="adjustSelectionFontSize(-2)">A-</button>
+            </div>
             <div style="font-size:14px; font-weight:700; color:#0f172a;">🎨 第{{ currentEditingSlide?.page_number || '-' }}页可视化编辑</div>
             <div class="editor-canvas-stage"
               ref="slideEditorStage"
-              :style="getEditorStageStyle()"
-              @mousedown="handleEditorContainerMouseDown"
-              @mousemove="handleSlideDragMove"
-              @mouseup="handleSlideDragEnd"
-              @mouseleave="handleSlideDragEnd">
-              <div v-if="showSlideDivider(currentEditingSlide)" :style="getEditorDividerStyle(currentEditingSlide)"></div>
-              <div v-if="currentEditingSlide?.inline_image_url && currentEditingSlide?.inline_image_position"
-                class="draggable-element editor-inline-image"
-                :class="{ active: selectedEditorImage }"
-                :style="getEditorInlineImageStyle(currentEditingSlide)"
-                @click.stop="selectEditorImage()">
-                <img :src="currentEditingSlide.inline_image_url" alt="inline image">
-              </div>
-              <div v-for="(el, elIdx) in (currentEditingSlide?.elements || [])"
-                :key="el.id || elIdx"
-                :data-element-index="elIdx"
-                class="draggable-element editor-element"
-                :class="{ active: selectedEditorElementIdx === elIdx && !selectedEditorImage }"
-                :style="getEditorElementStyle(el, elIdx)"
-                @click.stop="selectEditorElement(elIdx)">
-                {{ el.text }}
+              :class="'global-style-' + (currentEditingSlide?.design_spec?.overall_style || 'tech_blue')"
+              :style="getEditorStageStyle()">
+              <div v-if="currentEditingSlide?.background_url" class="editor-bg-layer" :class="currentEditingSlide.layout_style" :style="{ backgroundImage: `url(${currentEditingSlide.background_url})` }"></div>
+              <div class="editor-layout-shell" :style="getEditorShellStyle(currentEditingSlide)">
+                <div v-if="showSlideDivider(currentEditingSlide)" class="slot-divider"></div>
+                <template v-if="currentEditingSlide">
+                  <div v-if="isCoverLayout(currentEditingSlide.layout_style)" :class="currentEditingSlide.layout_style === 'ending' ? 'layout-ending' : 'layout-cover'" class="editor-stage-inner">
+                    <h1 class="slot-title" v-text-fit contenteditable="plaintext-only" @blur="updateSlot('title', $event)">{{ currentEditingSlide.slots?.title || '' }}</h1>
+                    <h3 class="slot-subtitle" v-text-fit contenteditable="plaintext-only" @blur="updateSlot('subtitle', $event)">{{ currentEditingSlide.slots?.subtitle || '' }}</h3>
+                  </div>
+
+                  <div v-else-if="currentEditingSlide.layout_style === 'text_left_chart_right'" class="layout-grid left-text-right-img">
+                    <div class="slot-column content-col slot-card">
+                      <h1 class="slot-title" v-text-fit contenteditable="plaintext-only" @blur="updateSlot('title', $event)">{{ currentEditingSlide.slots?.title || '' }}</h1>
+                      <h3 class="slot-subtitle" v-text-fit contenteditable="plaintext-only" @blur="updateSlot('subtitle', $event)">{{ currentEditingSlide.slots?.subtitle || '' }}</h3>
+                      <ul class="slot-bullets">
+                        <li v-for="(bullet, idx) in ensureSlotArray('body_left')" :key="'body_left_' + idx" :data-slot-key="'body_left'" :data-bullet-index="idx" contenteditable="plaintext-only" @keydown="handleBulletKeydown('body_left', idx, $event)" @blur="updateBullet('body_left', idx, $event)">{{ bullet }}</li>
+                      </ul>
+                    </div>
+                    <div class="img-col slot-card">
+                      <img v-if="currentEditingSlide.slots?.image_right" class="slot-image" :src="currentEditingSlide.slots.image_right" :style="getImageStyle(currentEditingSlide)" @click="selectImageSlot('image_right')" @dblclick="triggerReplaceImage('image_right')" alt="右侧配图" />
+                      <div v-if="currentEditingSlide.slots?.image_right" class="image-replace-overlay">📷 点击替换</div>
+                      <div v-else class="slot-image placeholder" @click="selectImageSlot('image_right')" @dblclick="triggerReplaceImage('image_right')">点击上传右侧配图</div>
+                    </div>
+                  </div>
+
+                  <div v-else-if="currentEditingSlide.layout_style === 'image_left_text_right'" class="layout-grid left-img-right-text">
+                    <div class="img-col slot-card">
+                      <img v-if="currentEditingSlide.slots?.image_left" class="slot-image" :src="currentEditingSlide.slots.image_left" :style="getImageStyle(currentEditingSlide)" @click="selectImageSlot('image_left')" @dblclick="triggerReplaceImage('image_left')" alt="左侧配图" />
+                      <div v-if="currentEditingSlide.slots?.image_left" class="image-replace-overlay">📷 点击替换</div>
+                      <div v-else class="slot-image placeholder" @click="selectImageSlot('image_left')" @dblclick="triggerReplaceImage('image_left')">点击上传左侧配图</div>
+                    </div>
+                    <div class="slot-column content-col slot-card">
+                      <h1 class="slot-title" v-text-fit contenteditable="plaintext-only" @blur="updateSlot('title', $event)">{{ currentEditingSlide.slots?.title || '' }}</h1>
+                      <h3 class="slot-subtitle" v-text-fit contenteditable="plaintext-only" @blur="updateSlot('subtitle', $event)">{{ currentEditingSlide.slots?.subtitle || '' }}</h3>
+                      <ul class="slot-bullets">
+                        <li v-for="(bullet, idx) in ensureSlotArray('body_right')" :key="'body_right_' + idx" :data-slot-key="'body_right'" :data-bullet-index="idx" contenteditable="plaintext-only" @keydown="handleBulletKeydown('body_right', idx, $event)" @blur="updateBullet('body_right', idx, $event)">{{ bullet }}</li>
+                      </ul>
+                    </div>
+                  </div>
+
+                  <div v-else-if="currentEditingSlide.layout_style === 'comparison'" class="layout-grid comparison">
+                    <h1 class="slot-title" v-text-fit contenteditable="plaintext-only" @blur="updateSlot('title', $event)">{{ currentEditingSlide.slots?.title || '' }}</h1>
+                    <h3 class="slot-subtitle" v-text-fit contenteditable="plaintext-only" @blur="updateSlot('subtitle', $event)">{{ currentEditingSlide.slots?.subtitle || '' }}</h3>
+                    <div class="slot-card">
+                      <div class="slot-subtitle" contenteditable="plaintext-only" @blur="updateSlot('left_label', $event)">{{ currentEditingSlide.slots?.left_label || '' }}</div>
+                      <ul class="slot-bullets">
+                        <li v-for="(bullet, idx) in ensureSlotArray('body_left')" :key="'cmp_left_' + idx" :data-slot-key="'body_left'" :data-bullet-index="idx" contenteditable="plaintext-only" @keydown="handleBulletKeydown('body_left', idx, $event)" @blur="updateBullet('body_left', idx, $event)">{{ bullet }}</li>
+                      </ul>
+                    </div>
+                    <div class="slot-card">
+                      <div class="slot-subtitle" contenteditable="plaintext-only" @blur="updateSlot('right_label', $event)">{{ currentEditingSlide.slots?.right_label || '' }}</div>
+                      <ul class="slot-bullets">
+                        <li v-for="(bullet, idx) in ensureSlotArray('body_right')" :key="'cmp_right_' + idx" :data-slot-key="'body_right'" :data-bullet-index="idx" contenteditable="plaintext-only" @keydown="handleBulletKeydown('body_right', idx, $event)" @blur="updateBullet('body_right', idx, $event)">{{ bullet }}</li>
+                      </ul>
+                    </div>
+                  </div>
+
+                  <div v-else-if="currentEditingSlide.layout_style === 'three_columns'" class="layout-grid three-columns">
+                    <h1 class="slot-title" v-text-fit contenteditable="plaintext-only" @blur="updateSlot('title', $event)">{{ currentEditingSlide.slots?.title || '' }}</h1>
+                    <h3 class="slot-subtitle" v-text-fit contenteditable="plaintext-only" @blur="updateSlot('subtitle', $event)">{{ currentEditingSlide.slots?.subtitle || '' }}</h3>
+                    <div class="slot-card" v-for="colKey in ['col1', 'col2', 'col3']" :key="colKey">
+                      <div class="slot-subtitle" contenteditable="plaintext-only" @blur="updateSlot(colKey + '_title', $event)">{{ currentEditingSlide.slots?.[colKey + '_title'] || '' }}</div>
+                      <ul class="slot-bullets">
+                        <li v-for="(bullet, idx) in ensureSlotArray(colKey)" :key="colKey + '_' + idx" :data-slot-key="colKey" :data-bullet-index="idx" contenteditable="plaintext-only" @keydown="handleBulletKeydown(colKey, idx, $event)" @blur="updateBullet(colKey, idx, $event)">{{ bullet }}</li>
+                      </ul>
+                    </div>
+                  </div>
+
+                  <div v-else-if="currentEditingSlide.layout_style === 'grid_4'" class="layout-grid grid-4">
+                    <h1 class="slot-title" v-text-fit contenteditable="plaintext-only" @blur="updateSlot('title', $event)">{{ currentEditingSlide.slots?.title || '' }}</h1>
+                    <h3 class="slot-subtitle" v-text-fit contenteditable="plaintext-only" @blur="updateSlot('subtitle', $event)">{{ currentEditingSlide.slots?.subtitle || '' }}</h3>
+                    <div class="slot-card slot-grid-card" v-for="gridKey in ['g1', 'g2', 'g3', 'g4']" :key="gridKey">
+                      <div class="slot-subtitle" contenteditable="plaintext-only" @blur="updateSlot(gridKey + '_title', $event)">{{ currentEditingSlide.slots?.[gridKey + '_title'] || '' }}</div>
+                      <div class="slot-richtext" contenteditable="plaintext-only" @blur="updateSlot(gridKey, $event)">{{ currentEditingSlide.slots?.[gridKey] || '' }}</div>
+                    </div>
+                  </div>
+
+                  <div v-else-if="currentEditingSlide.layout_style === 'data_focus'" class="layout-grid data-focus">
+                    <h1 class="slot-title" v-text-fit contenteditable="plaintext-only" @blur="updateSlot('title', $event)">{{ currentEditingSlide.slots?.title || '' }}</h1>
+                    <h3 class="slot-subtitle" v-text-fit contenteditable="plaintext-only" @blur="updateSlot('subtitle', $event)">{{ currentEditingSlide.slots?.subtitle || '' }}</h3>
+                    <div class="slot-card">
+                      <div class="slot-title" contenteditable="plaintext-only" @blur="updateSlot('highlight_number', $event)">{{ currentEditingSlide.slots?.highlight_number || '' }}</div>
+                      <div class="slot-subtitle" contenteditable="plaintext-only" @blur="updateSlot('number_label', $event)">{{ currentEditingSlide.slots?.number_label || '' }}</div>
+                      <ul class="slot-bullets">
+                        <li v-for="(bullet, idx) in ensureSlotArray('body')" :key="'data_' + idx" :data-slot-key="'body'" :data-bullet-index="idx" contenteditable="plaintext-only" @keydown="handleBulletKeydown('body', idx, $event)" @blur="updateBullet('body', idx, $event)">{{ bullet }}</li>
+                      </ul>
+                    </div>
+                    <div class="slot-image-wrap slot-card">
+                      <img v-if="currentEditingSlide.slots?.image_bottom" class="slot-image" :src="currentEditingSlide.slots.image_bottom" :style="getImageStyle(currentEditingSlide)" @click="selectImageSlot('image_bottom')" @dblclick="triggerReplaceImage('image_bottom')" alt="底部图表" />
+                      <div v-if="currentEditingSlide.slots?.image_bottom" class="image-replace-overlay">📷 点击替换</div>
+                      <div v-else class="slot-image placeholder" @click="selectImageSlot('image_bottom')" @dblclick="triggerReplaceImage('image_bottom')">点击上传底部图表</div>
+                    </div>
+                  </div>
+
+                  <div v-else-if="currentEditingSlide.layout_style === 'timeline'" class="layout-grid timeline">
+                    <h1 class="slot-title" v-text-fit contenteditable="plaintext-only" @blur="updateSlot('title', $event)">{{ currentEditingSlide.slots?.title || '' }}</h1>
+                    <h3 class="slot-subtitle" v-text-fit contenteditable="plaintext-only" @blur="updateSlot('subtitle', $event)">{{ currentEditingSlide.slots?.subtitle || '' }}</h3>
+                    <div class="timeline-axis">
+                      <div class="timeline-node" v-for="(ms, idx) in ensureTimelineMilestones()" :key="'tl_' + idx">
+                        <span class="timeline-label" contenteditable="plaintext-only" @blur="updateMilestoneLabel(idx, $event)">{{ ms.label || '' }}</span>
+                        <span class="timeline-text" contenteditable="plaintext-only" @blur="updateMilestoneText(idx, $event)">{{ ms.text || ms.event || '' }}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div v-else class="layout-grid text-only">
+                    <h1 class="slot-title" v-text-fit contenteditable="plaintext-only" @blur="updateSlot('title', $event)">{{ currentEditingSlide.slots?.title || '' }}</h1>
+                    <h3 class="slot-subtitle" v-text-fit contenteditable="plaintext-only" @blur="updateSlot('subtitle', $event)">{{ currentEditingSlide.slots?.subtitle || '' }}</h3>
+                    <ul class="slot-bullets slot-card">
+                      <li v-for="(bullet, idx) in ensureSlotArray('bullets')" :key="'body_' + idx" :data-slot-key="'bullets'" :data-bullet-index="idx" contenteditable="plaintext-only" @keydown="handleBulletKeydown('bullets', idx, $event)" @blur="updateBullet('bullets', idx, $event)">{{ bullet }}</li>
+                    </ul>
+                  </div>
+                </template>
               </div>
             </div>
-            <div style="font-size:12px; color:#64748b;">拖拽左侧文字元素即可调整位置，关闭即自动保存。</div>
+            <div style="font-size:12px; color:#64748b;">已切换为 slots 语义化编辑：支持内容编辑、图片替换、整页背景替换，以及 Ctrl+Z / Ctrl+Shift+Z 撤销重做。</div>
           </div>
           <div class="editor-side-panel">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
               <div style="font-size:16px; font-weight:700; color:#0f172a;">属性面板</div>
-              <button class="btn btn-small btn-default" @click="closeSlideEditor()">关闭</button>
+              <button class="btn btn-small btn-success" style="margin-bottom:0; margin-right:0;" @click="closeSlideEditor()">✅ 保存并完成</button>
             </div>
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-              <div style="font-size:16px; font-weight:700; color:#0f172a;">属性面板</div>
-              <button class="btn btn-small btn-default" @click="closeSlideEditor()">关闭</button>
-            </div>
-
-            <div v-if="selectedEditorElement && !selectedEditorImage">
-              <div class="editor-field">
-                <label>文本内容</label>
-                <textarea v-model="selectedEditorElement.text" rows="4"></textarea>
-              </div>
-              <div class="editor-field">
-                <label>字号</label>
-                <input type="number" v-model.number="selectedEditorElement.fontSize" min="10" max="96" />
-              </div>
-              <div class="editor-field">
-                <label>颜色</label>
-                <input type="color" v-model="selectedEditorElement.color" />
-              </div>
-              <div class="editor-field">
-                <label>对齐</label>
-                <select v-model="selectedEditorElement.align">
-                  <option value="left">左对齐</option>
-                  <option value="center">居中</option>
-                  <option value="right">右对齐</option>
-                </select>
-              </div>
-              <div class="editor-field" style="display:flex; align-items:center; gap:8px;">
-                <input type="checkbox" v-model="selectedEditorElement.bold" style="width:auto;" />
-                <label style="margin:0;">加粗</label>
-              </div>
-
-              <div class="editor-toolbar" style="margin-top: 15px; border-top: 1px dashed #cbd5e1; padding-top: 10px;">
-                <button class="btn btn-small btn-default" @click="moveElementUp()">⬆️ 上移一层</button>
-                <button class="btn btn-small btn-default" @click="moveElementDown()">⬇️ 下移一层</button>
-                <button class="btn btn-small btn-danger" @click="removeEditorElement()">🗑️ 删除</button>
-              </div>
+            <div class="history-toolbar">
+              <button class="btn btn-small btn-default" @click="undo" :disabled="!canUndo">↶ 撤销</button>
+              <button class="btn btn-small btn-default" @click="redo" :disabled="!canRedo">↷ 重做</button>
             </div>
 
-            <div v-else-if="selectedEditorImage" style="font-size:13px; color:#64748b; margin-bottom:12px;">
-              当前选中的是内联配图，可直接在左侧拖拽调整位置。<br/><br/>
-              按住 <b>Shift 键</b> 拖拽可取消自动网格吸附。
-              <div class="editor-toolbar" style="margin-top: 10px;">
-                <button class="btn btn-small btn-danger" @click="removeEditorImage()">🗑️ 删除此配图</button>
-              </div>
+            <div v-if="selectedSlotSummary" style="font-size:13px; color:#475569; margin-bottom:12px;">
+              <div style="font-weight:600; margin-bottom:6px;">当前页面槽位概览</div>
+              <div class="slot-richtext">{{ selectedSlotSummary }}</div>
             </div>
-
             <div v-else style="font-size:13px; color:#64748b; margin-bottom:12px;">
-              请在左侧点击选择文字或配图进行编辑。<br/><br/>
-              按住 <b>Shift 键</b> 拖拽可取消自动网格吸附。
+              当前页面采用 CSS Grid/Flex 流式布局，不再支持绝对坐标拖拽。请直接在左侧预览区域编辑文本，或在下方替换背景与图片。
             </div>
 
-            <div style="font-size:13px; color:#475569; font-weight:600; margin-top:20px; margin-bottom:8px; border-top:2px solid #e2e8f0; padding-top:15px;">全局页面管理</div>
+            <div class="editor-field">
+              <label>版式</label>
+              <select v-if="currentEditingSlide" v-model="currentEditingSlide.layout_style" @change="handleLayoutStyleChange">
+                <option value="cover">📔 封面</option>
+                <option value="text_only">📝 纯文字内容</option>
+                <option value="text_left_chart_right">📊 左文右图</option>
+                <option value="image_left_text_right">🖼️ 左图右文</option>
+                <option value="comparison">⚖️ 左右对比</option>
+                <option value="three_columns">📐 三列并排</option>
+                <option value="grid_4">🔲 四宫格</option>
+                <option value="data_focus">📈 数据聚焦</option>
+                <option value="timeline">🕐 时间轴</option>
+                <option value="ending">📄 结尾页</option>
+              </select>
+            </div>
+
+            <div style="font-size:13px; color:#475569; font-weight:600; margin-top:16px; margin-bottom:4px; border-top:2px solid #e2e8f0; padding-top:12px;">✏️ 全局文字样式</div>
+            <div class="editor-field">
+              <label>标题字号</label>
+              <div style="display:flex; gap:6px; align-items:center;">
+                <input type="range" min="16" max="60" v-model.number="fontStyle.titleSize" @input="applyFontStyle" style="flex:1;">
+                <span style="font-size:12px;color:#64748b;min-width:40px;text-align:right;">{{ fontStyle.titleSize }}px</span>
+              </div>
+            </div>
+            <div class="editor-field">
+              <label>正文字号</label>
+              <div style="display:flex; gap:6px; align-items:center;">
+                <input type="range" min="10" max="36" v-model.number="fontStyle.bodySize" @input="applyFontStyle" style="flex:1;">
+                <span style="font-size:12px;color:#64748b;min-width:40px;text-align:right;">{{ fontStyle.bodySize }}px</span>
+              </div>
+            </div>
+            <div class="editor-field">
+              <label>字体粗细</label>
+              <select v-model="fontStyle.fontWeight" @change="applyFontStyle">
+                <option value="400">常规 Regular</option>
+                <option value="500">中等 Medium</option>
+                <option value="600">半粗 Semi-Bold</option>
+                <option value="700">粗体 Bold</option>
+                <option value="900">特粗 Black</option>
+              </select>
+            </div>
+            <div class="editor-field">
+              <label>标题颜色</label>
+              <div style="display:flex; gap:8px; align-items:center;">
+                <input type="color" v-model="fontStyle.titleColor" @input="applyFontStyle" style="height:36px;width:48px;padding:2px;">
+                <span style="font-size:12px;color:#64748b;">{{ fontStyle.titleColor }}</span>
+              </div>
+            </div>
+            <div class="editor-field">
+              <label>正文颜色</label>
+              <div style="display:flex; gap:8px; align-items:center;">
+                <input type="color" v-model="fontStyle.bodyColor" @input="applyFontStyle" style="height:36px;width:48px;padding:2px;">
+                <button class="btn btn-small btn-default" style="margin:0;" @click="applyToAll('fontStyle')">应用全部</button>
+              </div>
+            </div>
+
+            <div class="editor-field">
+              <label>页面主题色</label>
+              <div style="display:flex; gap:8px; align-items:center;">
+                <input type="color" :value="currentEditingSlide?.design_spec?.theme_color || aiPPTThemeColor" @input="updateThemeColor($event.target.value)" style="height:40px; padding:4px; flex:1;" />
+                <button class="btn btn-small btn-default" style="margin-right:0; margin-bottom:0;" @click="applyToAll('theme_color')">应用全部</button>
+              </div>
+            </div>
+
+            <div class="editor-field" v-if="selectedImageSlot">
+              <label>图片填充模式</label>
+              <select v-model="currentEditingSlide.image_fit_mode" @change="syncEditingPageState(currentEditingSlide)">
+                <option value="contain">完整包含 (留白)</option>
+                <option value="cover">裁剪填充 (无黑边)</option>
+              </select>
+              <template v-if="currentEditingSlide.image_fit_mode === 'cover'">
+                <label>垂直焦点 ({{ currentEditingSlide.image_position_y || 50 }}%)</label>
+                <input type="range" min="0" max="100" v-model="currentEditingSlide.image_position_y" @input="syncEditingPageState(currentEditingSlide)">
+              </template>
+            </div>
+
+            <div style="font-size:13px; color:#475569; font-weight:600; margin-top:20px; margin-bottom:8px; border-top:2px solid #e2e8f0; padding-top:15px;">页面资源管理</div>
 
             <div class="editor-toolbar" style="flex-direction: column; align-items: stretch;">
-              <button class="btn btn-small btn-primary" style="margin-right: 0;" @click="addEditorElement()">➕ 添加文本块</button>
+              <!-- AI 重新生成封面/尾页背景 -->
+              <button v-if="currentEditingSlide?.layout_style === 'cover' || currentEditingSlide?.layout_style === 'ending'" class="btn btn-small btn-warning" style="margin-bottom:6px; background: linear-gradient(135deg, #f59e0b, #ef4444); color: #fff; border: none;" @click="regenerateCoverEndingBackground(editingSlideIdx)">✨ AI 重新生成背景</button>
 
               <input type="file" ref="bgUpload" accept="image/*" style="display:none" @change="replaceBackgroundImage" />
-              <button class="btn btn-small btn-default" style="margin-right: 0;" @click="$refs.bgUpload.click()">🖼️ 替换整页背景</button>
+              <div style="display:flex; gap:8px;">
+                <button class="btn btn-small btn-default" style="margin-right: 0; flex:1;" @click="$refs.bgUpload.click()">🖼️ 替换整页背景</button>
+                <button class="btn btn-small btn-default" style="margin-right:0; margin-bottom:0;" @click="applyToAll('background')">应用全部</button>
+              </div>
 
-              <input type="file" ref="inlineUpload" accept="image/*" style="display:none" @change="replaceInlineImage" />
-              <button class="btn btn-small btn-default" style="margin-right: 0;" @click="$refs.inlineUpload.click()">🌅 替换/添加配图</button>
+              <input id="slot-image-upload-proxy" type="file" ref="slotImageUpload" accept="image/*" style="display:none" @change="handleSlotImageFileChange" />
+              <button class="btn btn-small btn-default" style="margin-right: 0;" @click="triggerPrimaryImageReplace()">🌅 替换主配图</button>
+              <!-- 封面/尾页不显示配图相关区域 -->
+              <template v-if="currentEditingSlide?.layout_style !== 'cover' && currentEditingSlide?.layout_style !== 'ending'">
+                <div style="font-size:12px; color:#64748b; margin-top:4px;">配图提示词（可修改后重新生成）</div>
+                <textarea v-model="currentSlideImagePrompt" placeholder="修改画图提示词后点击重新生成" rows="3" style="width:100%; font-size:12px; margin-top:4px; border:1px solid #cbd5e1; border-radius:6px; padding:6px;"></textarea>
+                <button class="btn btn-small btn-warning" @click="regeneratePageImage(editingSlideIdx)">🪄 AI 重新生成配图</button>
+              </template>
             </div>
           </div>
         </div>
@@ -1651,11 +2213,30 @@
     
     // Vue 应用初始化
     const { createApp } = Vue;
+
+    // ==================== v-text-fit 指令 ====================
+    const vTextFit = {
+      updated(el) {
+        const doFit = () => {
+          const computedStyle = window.getComputedStyle(el);
+          const originalFontSize = parseInt(el.dataset.originalFontSize || computedStyle.fontSize, 10);
+          el.dataset.originalFontSize = String(originalFontSize);
+          let currentFontSize = originalFontSize;
+          const minFontSize = 12;
+          el.style.fontSize = currentFontSize + 'px';
+          while (el.scrollHeight > el.clientHeight && currentFontSize > minFontSize) {
+            currentFontSize--;
+            el.style.fontSize = currentFontSize + 'px';
+          }
+        };
+        setTimeout(doFit, 0);
+      }
+    };
+
     createApp({
       setup() {
         // Vue 核心 API 解构
         const { onMounted, onBeforeMount, ref, reactive, computed, onUnmounted, nextTick, watch } = Vue;
-        
         // 核心配置响应式数据
         const config = reactive({
           roleId: '111204004',  // 默认知夏形象
@@ -1778,87 +2359,188 @@
         };
         const UPLOAD_LIMITS = { PPT_MAX_MB: 50, DOC_MAX_MB: 20 };
         const AI_TIMEOUT_MS = 600000;
-        const IMAGE_LAYOUTS = ['text_left_chart_right', 'image_left_text_right', 'data_focus'];
+        const SLOT_DEFAULTS = {
+          cover: { title: '', subtitle: '' },
+          text_only: { title: '', subtitle: '', bullets: [''], keywords: [] },
+          content: { title: '', subtitle: '', bullets: [''], keywords: [] },
+          body: { title: '', subtitle: '', bullets: [''], keywords: [] },
+          section_header: { title: '', subtitle: '', bullets: [''], keywords: [] },
+          content_with_icon: { title: '', subtitle: '', bullets: [''], keywords: [] },
+          conclusion: { title: '', subtitle: '', bullets: [''], keywords: [] },
+          toc: { title: '', subtitle: '', bullets: [''], keywords: [] },
+          text_left_chart_right: { title: '', subtitle: '', body_left: [''], image_right: '' },
+          image_left_text_right: { image_left: '', title: '', subtitle: '', body_right: [''] },
+          comparison: { title: '', subtitle: '', body_left: [''], body_right: [''], left_label: '', right_label: '' },
+          two_column: { title: '', subtitle: '', body_left: [''], body_right: [''], left_label: '', right_label: '' },
+          three_columns: { title: '', subtitle: '', col1: [''], col2: [''], col3: [''], col1_title: '', col2_title: '', col3_title: '' },
+          grid_4: { title: '', subtitle: '', g1: '', g2: '', g3: '', g4: '', g1_title: '', g2_title: '', g3_title: '', g4_title: '' },
+          grid_four: { title: '', subtitle: '', g1: '', g2: '', g3: '', g4: '', g1_title: '', g2_title: '', g3_title: '', g4_title: '' },
+          data_focus: { title: '', subtitle: '', body: [''], image_bottom: '', highlight_number: '', number_label: '' },
+          data_highlight: { title: '', subtitle: '', body: [''], image_bottom: '', highlight_number: '', number_label: '' },
+          timeline: { title: '', subtitle: '', milestones: [{label: '', text: '', is_current: false}], is_current: false },
+          quote_centered: { title: '', subtitle: '' },
+          ending: { title: '', subtitle: '' }
+        };
 
-        function getImagePosition(layout) {
-          if (layout === 'text_left_chart_right') return { x: 52, y: 15, w: 40, h: 70 };
-          if (layout === 'image_left_text_right') return { x: 5, y: 15, w: 40, h: 70 };
-          if (layout === 'data_focus') return { x: 5, y: 65, w: 90, h: 28 };
-          return null;
-        }
-
-        // ==================== 版式坐标字典 ====================
-        function getLayoutCoords(layout, page, themeColorOverride) {
-          const tc = themeColorOverride || aiPPTThemeColor.value || '#0F172A';
-          const sc = '#475569';
-          const CENTER = 'center', LEFT = 'left';
-          const el = [];
-
-          const t = page.title || '';
-          const st = page.subtitle || '';
-          const bullets = Array.isArray(page.exact_content) ? page.exact_content : [];
-          const contentText = bullets.map(c => '• ' + c).join('\n\n');
-          const splitBullets = (items, chunks) => {
-            const groups = Array.from({ length: chunks }, () => []);
-            items.forEach((item, idx) => groups[idx % chunks].push(item));
-            return groups;
-          };
-
-          if (layout === 'cover') {
-            if (t) el.push({ id: 't', text: t, x: 10, y: 35, w: 80, fontSize: 56, color: '#FFFFFF', bold: true, align: CENTER, shadow: true });
-            if (st) el.push({ id: 's', text: st, x: 10, y: 55, w: 80, fontSize: 26, color: '#FFFFFF', align: CENTER, shadow: true });
-          } else if (layout === 'text_only') {
-            if (t) el.push({ id: 't', text: t, x: 8, y: 8, w: 84, fontSize: 36, color: tc, bold: true, align: LEFT });
-            if (st) el.push({ id: 's', text: st, x: 8, y: 18, w: 84, fontSize: 20, color: sc, align: LEFT });
-            if (contentText) el.push({ id: 'c', text: contentText, x: 8, y: 30, w: 84, fontSize: 22, color: '#334155', align: LEFT, lineGap: 16 });
-          } else if (layout === 'text_left_chart_right') {
-            if (t) el.push({ id: 't', text: t, x: 8, y: 10, w: 40, fontSize: 36, color: tc, bold: true, align: LEFT });
-            if (st) el.push({ id: 's', text: st, x: 8, y: 22, w: 40, fontSize: 20, color: sc, align: LEFT });
-            if (contentText) el.push({ id: 'c', text: contentText, x: 8, y: 32, w: 38, fontSize: 22, color: '#334155', align: LEFT, lineGap: 16 });
-          } else if (layout === 'image_left_text_right') {
-            if (t) el.push({ id: 't', text: t, x: 50, y: 10, w: 42, fontSize: 36, color: tc, bold: true, align: LEFT });
-            if (st) el.push({ id: 's', text: st, x: 50, y: 22, w: 42, fontSize: 20, color: sc, align: LEFT });
-            if (contentText) el.push({ id: 'c', text: contentText, x: 50, y: 32, w: 42, fontSize: 22, color: '#334155', align: LEFT, lineGap: 16 });
-          } else if (layout === 'comparison') {
-            if (t) el.push({ id: 't', text: t, x: 8, y: 8, w: 84, fontSize: 36, color: tc, bold: true, align: CENTER });
-            if (st) el.push({ id: 's', text: st, x: 8, y: 18, w: 84, fontSize: 20, color: sc, align: CENTER });
-            const [leftBullets, rightBullets] = splitBullets(bullets, 2);
-            const leftText = leftBullets.map(c => '• ' + c).join('\n\n');
-            const rightText = rightBullets.map(c => '• ' + c).join('\n\n');
-            if (leftText) el.push({ id: 'c_left', text: leftText, x: 8, y: 30, w: 38, fontSize: 22, color: '#334155', align: LEFT, lineGap: 16, hasBg: true });
-            if (rightText) el.push({ id: 'c_right', text: rightText, x: 54, y: 30, w: 38, fontSize: 22, color: '#334155', align: LEFT, lineGap: 16, hasBg: true });
-          } else if (layout === 'three_columns') {
-            if (t) el.push({ id: 't', text: t, x: 8, y: 6, w: 84, fontSize: 34, color: tc, bold: true, align: CENTER });
-            if (st) el.push({ id: 's', text: st, x: 8, y: 15, w: 84, fontSize: 18, color: sc, align: CENTER });
-            const groups = splitBullets(bullets, 3);
-            const cols = [8, 36, 64];
-            groups.forEach((group, idx) => {
-              const text = group.map(c => '• ' + c).join('\n\n');
-              if (text) el.push({ id: 'col_' + idx, text, x: cols[idx], y: 28, w: 24, fontSize: 20, color: '#334155', align: LEFT, lineGap: 14, hasBg: true });
-            });
-          } else if (layout === 'grid_4') {
-            if (t) el.push({ id: 't', text: t, x: 8, y: 5, w: 84, fontSize: 34, color: tc, bold: true, align: CENTER });
-            if (st) el.push({ id: 's', text: st, x: 8, y: 14, w: 84, fontSize: 18, color: sc, align: CENTER });
-            const gridX = [8, 50], gridY = [24, 52], gridW = 38;
-            for (let g = 0; g < 4 && g < bullets.length; g++) {
-              const cx = gridX[g % 2];
-              const cy = gridY[Math.floor(g / 2)];
-              el.push({ id: 'g' + g, text: '• ' + bullets[g], x: cx, y: cy, w: gridW, fontSize: 19, color: '#334155', align: LEFT, lineGap: 12, hasBg: true });
-            }
-          } else if (layout === 'data_focus') {
-            if (t) el.push({ id: 't', text: t, x: 8, y: 8, w: 84, fontSize: 36, color: tc, bold: true, align: LEFT });
-            if (st) el.push({ id: 's', text: st, x: 8, y: 18, w: 84, fontSize: 20, color: sc, align: LEFT });
-            if (contentText) el.push({ id: 'c', text: contentText, x: 8, y: 30, w: 84, fontSize: 21, color: '#334155', align: LEFT, lineGap: 14, hasBg: true });
-          } else if (layout === 'ending') {
-            if (t) el.push({ id: 't', text: t, x: 10, y: 40, w: 80, fontSize: 52, color: '#FFFFFF', bold: true, align: CENTER, shadow: true });
-            if (st) el.push({ id: 's', text: st, x: 10, y: 58, w: 80, fontSize: 24, color: '#FFFFFF', align: CENTER, shadow: true });
-          } else {
-            if (t) el.push({ id: 't', text: t, x: 8, y: 8, w: 84, fontSize: 36, color: tc, bold: true, align: LEFT });
-            if (st) el.push({ id: 's', text: st, x: 8, y: 18, w: 84, fontSize: 20, color: sc, align: LEFT });
-            if (contentText) el.push({ id: 'c', text: contentText, x: 8, y: 30, w: 84, fontSize: 22, color: '#334155', align: LEFT, lineGap: 16 });
+        function cloneSlots(value) {
+          if (Array.isArray(value)) {
+            return value.map(item => cloneSlots(item));
           }
-          return el;
+          if (value instanceof HTMLImageElement) {
+            return null;
+          }
+          if (value && typeof value === 'object') {
+            const result = {};
+            Object.entries(value).forEach(([key, item]) => {
+              const cloned = cloneSlots(item);
+              if (cloned !== null || !(item instanceof HTMLImageElement)) {
+                result[key] = cloned;
+              }
+            });
+            return result;
+          }
+          return value;
         }
+
+        function deepClone(value) {
+          return cloneSlots(value);
+        }
+        const IMAGE_SLOT_BY_LAYOUT = {
+          text_left_chart_right: 'image_right',
+          image_left_text_right: 'image_left',
+          data_focus: 'image_bottom',
+          data_highlight: 'image_bottom'
+        };
+        const IMAGE_CAPABLE_LAYOUTS = Object.keys(IMAGE_SLOT_BY_LAYOUT);
+
+        function normalizeSlotValue(value) {
+          if (Array.isArray(value)) return value.map(item => String(item ?? ''));
+          return value == null ? '' : String(value);
+        }
+
+        function buildSlotsFromPage(page = {}) {
+          const layout = page.layout_style || 'text_only';
+          const defaults = deepClone(SLOT_DEFAULTS[layout] || SLOT_DEFAULTS.text_only);
+          const exact = Array.isArray(page.exact_content) ? page.exact_content.filter(Boolean).map(item => String(item)) : [];
+          const distributed = (items, count) => Array.from({ length: count }, (_, idx) => items.filter((_, itemIdx) => itemIdx % count === idx));
+          const imageSlot = IMAGE_SLOT_BY_LAYOUT[layout];
+
+          // 先兜底：从 top-level 字段重建（不依赖 slots）
+          defaults.title = String(page.title || defaults.title || '');
+          defaults.subtitle = String(page.subtitle || defaults.subtitle || '');
+          // 提取顶层 label/title 字段
+          if (defaults.left_label !== undefined) defaults.left_label = String(page.left_label || defaults.left_label || '');
+          if (defaults.right_label !== undefined) defaults.right_label = String(page.right_label || defaults.right_label || '');
+          if (defaults.col1_title !== undefined) defaults.col1_title = String(page.col1_title || defaults.col1_title || '');
+          if (defaults.col2_title !== undefined) defaults.col2_title = String(page.col2_title || defaults.col2_title || '');
+          if (defaults.col3_title !== undefined) defaults.col3_title = String(page.col3_title || defaults.col3_title || '');
+          if (defaults.g1_title !== undefined) defaults.g1_title = String(page.g1_title || defaults.g1_title || '');
+          if (defaults.g2_title !== undefined) defaults.g2_title = String(page.g2_title || defaults.g2_title || '');
+          if (defaults.g3_title !== undefined) defaults.g3_title = String(page.g3_title || defaults.g3_title || '');
+          if (defaults.g4_title !== undefined) defaults.g4_title = String(page.g4_title || defaults.g4_title || '');
+          if (defaults.highlight_number !== undefined) defaults.highlight_number = String(page.highlight_number || defaults.highlight_number || '');
+          if (defaults.number_label !== undefined) defaults.number_label = String(page.number_label || defaults.number_label || '');
+          if (defaults.keywords !== undefined) defaults.keywords = Array.isArray(page.keywords) ? page.keywords : (defaults.keywords || []);
+          // 内容分发
+          if (layout === 'text_only' || layout === 'content' || layout === 'body' || layout === 'section_header' || layout === 'content_with_icon' || layout === 'conclusion' || layout === 'toc') {
+            defaults.bullets = exact.length ? exact : defaults.bullets;
+          } else if (layout === 'text_left_chart_right') {
+            defaults.body_left = exact.length ? exact : defaults.body_left;
+          } else if (layout === 'image_left_text_right') {
+            defaults.body_right = exact.length ? exact : defaults.body_right;
+          } else if (layout === 'comparison' || layout === 'two_column') {
+            const [left = [], right = []] = distributed(exact, 2);
+            defaults.body_left = left.length ? left : defaults.body_left;
+            defaults.body_right = right.length ? right : defaults.body_right;
+          } else if (layout === 'three_columns') {
+            const [c1 = [], c2 = [], c3 = []] = distributed(exact, 3);
+            defaults.col1 = c1.length ? c1 : defaults.col1;
+            defaults.col2 = c2.length ? c2 : defaults.col2;
+            defaults.col3 = c3.length ? c3 : defaults.col3;
+          } else if (layout === 'grid_4' || layout === 'grid_four') {
+            ['g1', 'g2', 'g3', 'g4'].forEach((key, idx) => {
+              defaults[key] = exact[idx] || defaults[key] || '';
+            });
+          } else if (layout === 'data_focus' || layout === 'data_highlight') {
+            defaults.body = exact.length ? exact : defaults.body;
+          } else if (layout === 'timeline') {
+            // timeline: milestones from exact_content or keep defaults
+            if (exact.length) {
+              defaults.milestones = exact.map((t, i) => ({label: `阶段${i+1}`, text: t, is_current: false}));
+            }
+          } else {
+            defaults.bullets = exact.length ? exact : defaults.bullets;
+          }
+
+          // 再用 slots 覆盖（如果 slots 有值）
+          const sourceSlots = page.slots && typeof page.slots === 'object' && Object.keys(page.slots).length > 0 ? page.slots : null;
+          if (sourceSlots) {
+            Object.keys(defaults).forEach(key => {
+              const val = sourceSlots[key];
+              if (val === undefined || val === null || val === '') return;
+              // timeline milestones 特判：保留对象数组结构，不走字符串化
+              if (key === 'milestones' && Array.isArray(val)) {
+                defaults[key] = val.map(m => typeof m === 'string'
+                  ? { label: '', text: m, is_current: false }
+                  : { label: m?.label || '', text: m?.text || m?.event || '', is_current: !!m?.is_current });
+                return;
+              }
+              defaults[key] = normalizeSlotValue(val);
+            });
+          }
+          if (imageSlot) {
+            defaults[imageSlot] = page.inline_image_url || defaults[imageSlot] || '';
+          }
+          return defaults;
+        }
+
+        function extractExactContentFromSlots(layout, slots = {}) {
+          if (layout === 'text_only' || layout === 'content' || layout === 'body' || layout === 'section_header' || layout === 'content_with_icon' || layout === 'conclusion' || layout === 'toc') return [...(slots.bullets || [])].filter(Boolean);
+          if (layout === 'text_left_chart_right') return [...(slots.body_left || [])].filter(Boolean);
+          if (layout === 'image_left_text_right') return [...(slots.body_right || [])].filter(Boolean);
+          if (layout === 'comparison') return [...(slots.body_left || []), ...(slots.body_right || [])].filter(Boolean);
+          if (layout === 'three_columns') return [...(slots.col1 || []), ...(slots.col2 || []), ...(slots.col3 || [])].filter(Boolean);
+          if (layout === 'grid_4') return ['g1', 'g2', 'g3', 'g4'].map(key => slots[key]).filter(Boolean);
+          if (layout === 'data_focus') return [...(slots.body || [])].filter(Boolean);
+          if (layout === 'timeline') return (Array.isArray(slots.milestones) ? slots.milestones.map(m => (typeof m === 'string' ? m : `${m.label || ''}: ${m.text || m.event || ''}`)) : []).filter(Boolean);
+          if (layout === 'quote_centered') return [slots.subtitle || slots.title].filter(Boolean);
+          return [];
+        }
+
+        function normalizePageToSlots(page = {}) {
+          const layout = page.layout_style || 'text_only';
+          const slots = buildSlotsFromPage(page);
+          const imageSlot = IMAGE_SLOT_BY_LAYOUT[layout];
+          return {
+            ...page,
+            layout_style: layout,
+            slots,
+            title: slots.title || '',
+            subtitle: slots.subtitle || '',
+            exact_content: extractExactContentFromSlots(layout, slots),
+            inline_image_url: imageSlot ? (slots[imageSlot] || null) : null,
+            blocks: undefined,
+            elements: undefined
+          };
+        }
+
+        function getPrimaryImageSlot(layout) {
+          return IMAGE_SLOT_BY_LAYOUT[layout] || null;
+        }
+
+        function getPageTheme(page) {
+          return page?.design_spec?.theme_color || aiPPTThemeColor.value || '#1e3a8a';
+        }
+
+        function getEditorSummary(page) {
+          if (!page?.slots) return '';
+          return Object.entries(page.slots)
+            .map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(' / ') : value}`)
+            .filter(Boolean)
+.join('\n');
+        }
+        // ==================== 版式坐标字典 ====================
+
         // PPT 配置核心状态
         const pptCollapseOpen = ref(true);
         const pptConfig = reactive({
@@ -1883,9 +2565,15 @@
         const previewSlidePage = ref(null);
         const pptPreviewCanvas = ref(null);
         const slideEditorStage = ref(null);
-        const selectedEditorElementIdx = ref(null);
-        const selectedEditorImage = ref(false);
-        const slideDragState = reactive({ active: false, startX: 0, startY: 0, originX: 0, originY: 0, type: null });
+        const slotImageUpload = ref(null);
+        const historyStack = ref([]);
+        const historyIndex = ref(-1);
+        const highlightKeywordInput = ref('');
+        const highlightColorInput = ref('#fde68a');
+        const showToolbar = ref(false);
+        const toolbarX = ref(0);
+        const toolbarY = ref(0);
+        const selectedImageSlotKey = ref('');
         // 翻页节点状态
         const pageTurningNodes = ref([]);
         const pageTurningConfirmed = ref(false);
@@ -1925,6 +2613,37 @@
         const showSlideEditor = ref(false);   // 可视化编辑器弹窗
         const editingSlideIdx = ref(null);    // 正在编辑的页面索引
         const aiPPTThemeColor = ref('#1e3a8a');  // 后端返回的 theme_color
+        const showPPTistEditor = ref(false);
+        const pptistEditorUrl = ref(PPTIST_EDITOR_URL);
+        const pptistFrame = ref(null);
+        const pptistFrameLoaded = ref(false);
+        // Bug3+4: 全局字体样式
+        const fontStyle = reactive({
+          titleSize: 36,
+          bodySize: 16,
+          fontWeight: '400',
+          titleColor: '#0f172a',
+          bodyColor: '#334155'
+        });
+        function applyFontStyle() {
+          // 更新当前页面的字体样式变量
+          const stage = document.querySelector('.editor-canvas-stage');
+          if (stage) {
+            stage.style.setProperty('--title-size', fontStyle.titleSize + 'px');
+            stage.style.setProperty('--body-size', fontStyle.bodySize + 'px');
+            stage.style.setProperty('--font-weight', fontStyle.fontWeight);
+            stage.style.setProperty('--title-color', fontStyle.titleColor);
+            stage.style.setProperty('--body-color', fontStyle.bodyColor);
+          }
+          syncCurrentPageState();
+        }
+        function resetFontStyle(page) {
+          fontStyle.titleSize = page?.font_style?.title_size || 36;
+          fontStyle.bodySize = page?.font_style?.body_size || 16;
+          fontStyle.fontWeight = page?.font_style?.font_weight || '400';
+          fontStyle.titleColor = page?.font_style?.title_color || '#0f172a';
+          fontStyle.bodyColor = page?.font_style?.body_color || '#334155';
+        }
         const aiPPTBackgrounds = ref([]);
         const aiPPTOutlineLoading = ref(false);
         const aiPPTBackgroundsLoading = ref(false);
@@ -1936,6 +2655,10 @@
 
         // Toast 相关
         const toastList = ref([]);
+        const globalLoading = reactive({
+          visible: false,
+          message: '处理中...'
+        });
         // 生成本地用户"云端身份证"
         let localOpenId = localStorage.getItem('avatar_open_id');
         if (!localOpenId || !localOpenId.startsWith('ou_')) {
@@ -1968,6 +2691,13 @@
           }
           return toastItem;
         }
+        function showLoading(message = '处理中...') {
+          globalLoading.message = message;
+          globalLoading.visible = true;
+        }
+        function hideLoading() {
+          globalLoading.visible = false;
+        }
         function closeToast(toastItem) {
           const index = toastList.value.indexOf(toastItem);
           if (index > -1) toastList.value.splice(index, 1);
@@ -1990,351 +2720,534 @@
             h: Number(position?.h ?? 48)
           };
         }
-        function drawTextElement(ctx, el, startX, startY, pptW, pptH) {
-          if (!el || !el.text) return;
-          const elX = startX + (Number(el.x || 0) / 100) * pptW;
-          const elY = startY + (Number(el.y || 0) / 100) * pptH;
-          // 限制最大宽度，防止冲出边界
-          const maxW = (Number(el.w || 80) / 100) * pptW;
-          const scaledFontSize = Math.floor(Number(el.fontSize || 24) * 1.5);
 
-          ctx.save();
-          ctx.font = `${el.bold ? 'bold ' : ''}${scaledFontSize}px "Microsoft YaHei", sans-serif`;
-          ctx.fillStyle = el.color || '#000000';
-          ctx.textAlign = el.align || 'left';
-          ctx.textBaseline = 'top';
 
-          if (el.shadow) {
-            ctx.shadowColor = 'rgba(0, 0, 0, 0.25)';
-            ctx.shadowBlur = 8;
-            ctx.shadowOffsetX = 2;
-            ctx.shadowOffsetY = 2;
-          }
 
-          // 自动换行算法
-          const paragraphs = String(el.text).split('\n');
-          const lineHeight = (el.lineGap ? Number(el.lineGap) : scaledFontSize * 0.6) + scaledFontSize;
-          let currentY = elY;
-
-          paragraphs.forEach(paragraph => {
-            let line = '';
-            const chars = paragraph.split('');
-
-            for (let n = 0; n < chars.length; n++) {
-              const testLine = line + chars[n];
-              const metrics = ctx.measureText(testLine);
-              const testWidth = metrics.width;
-
-              if (testWidth > maxW && n > 0) {
-                ctx.fillText(line, elX, currentY);
-                line = chars[n];
-                currentY += lineHeight;
-              } else {
-                line = testLine;
-              }
-            }
-            ctx.fillText(line, elX, currentY);
-            currentY += lineHeight;
-          });
-
-          ctx.restore();
-        }
-        function getSlideDividerMetrics(page, startX = 0, startY = 0, pptW = 1280, pptH = 720) {
-          const accent = page?.design_spec?.accent_color || aiPPTOutline.value?.design_spec?.accent_color || '#2563EB';
-          return {
-            show: page && page.layout_style !== 'cover' && page.layout_style !== 'ending',
-            x: startX + pptW * 0.05,
-            y: startY + pptH * 0.14,
-            w: pptW * 0.88,
-            h: 30,
-            color: accent
-          };
-        }
         async function renderSlideToCanvas(page, canvasEl) {
-          if (!page || !canvasEl) return;
-          const ctx = canvasEl.getContext('2d');
-          canvasEl.width = 1280;
-          canvasEl.height = 720;
-          ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
-          ctx.fillStyle = '#0f172a';
-          ctx.fillRect(0, 0, canvasEl.width, canvasEl.height);
-          const bg = await loadImage(page.background_url).catch(() => null);
-          if (bg) ctx.drawImage(bg, 0, 0, canvasEl.width, canvasEl.height);
-          const divider = getSlideDividerMetrics(page, 0, 0, canvasEl.width, canvasEl.height);
-          if (divider.show) {
-            ctx.save();
-            ctx.fillStyle = divider.color;
-            ctx.fillRect(divider.x, divider.y, divider.w, divider.h);
-            ctx.restore();
+          if (!page || !canvasEl || typeof html2canvas === 'undefined') return;
+          const offscreenHost = document.createElement('div');
+          offscreenHost.style.position = 'fixed';
+          offscreenHost.style.left = '-99999px';
+          offscreenHost.style.top = '0';
+          offscreenHost.style.width = '1280px';
+          offscreenHost.style.height = '720px';
+          offscreenHost.style.pointerEvents = 'none';
+          offscreenHost.style.zIndex = '-1';
+          offscreenHost.innerHTML = buildSlideSnapshotHtml(page);
+          document.body.appendChild(offscreenHost);
+          try {
+            const node = offscreenHost.firstElementChild;
+            const snapshotCanvas = await html2canvas(node, {
+              backgroundColor: null,
+              scale: 1,
+              useCORS: true,
+              width: 1280,
+              height: 720
+            });
+            canvasEl.width = 1280;
+            canvasEl.height = 720;
+            const ctx = canvasEl.getContext('2d');
+            ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
+            ctx.drawImage(snapshotCanvas, 0, 0, canvasEl.width, canvasEl.height);
+          } finally {
+            document.body.removeChild(offscreenHost);
           }
-          if (page.inline_image_url && page.inline_image_position) {
-            const inline = await loadImage(page.inline_image_url).catch(() => null);
-            const pos = normalizeImagePosition(page.inline_image_position);
-            if (inline) {
-              ctx.drawImage(inline, (pos.x / 100) * canvasEl.width, (pos.y / 100) * canvasEl.height, (pos.w / 100) * canvasEl.width, (pos.h / 100) * canvasEl.height);
-            }
-          }
-          (page.elements || []).forEach(el => drawTextElement(ctx, el, 0, 0, canvasEl.width, canvasEl.height));
         }
         function showSlideDivider(page) {
-          return !!getSlideDividerMetrics(page).show;
+          return false; // 去掉标题下横线
         }
         function getThumbnailDividerStyle(page) {
-          const divider = getSlideDividerMetrics(page, 0, 0, 100, 100);
           return {
             position: 'absolute',
-            left: `${divider.x}%`,
-            top: `${divider.y}%`,
-            width: `${divider.w}%`,
+            left: '5%',
+            top: '14%',
+            width: '88%',
             height: '4px',
-            background: divider.color,
+            background: getPageTheme(page),
             borderRadius: '999px'
           };
         }
-        function getThumbnailElementStyle(el) {
-          return {
-            position: 'absolute',
-            left: `${el.x || 0}%`,
-            top: `${el.y || 0}%`,
-            width: `${el.w || 30}%`,
-            color: el.color || '#111827',
-            fontSize: `${Math.max(10, Math.round((el.fontSize || 18) * 0.28))}px`,
-            fontWeight: el.bold ? '700' : '400',
-            textAlign: el.align || 'left',
-            whiteSpace: 'pre-wrap',
-            lineHeight: `${Math.max(1.25, ((el.fontSize || 18) + (el.lineGap || 10)) / Math.max(1, (el.fontSize || 18)))}em`,
-            textShadow: el.shadow ? '0 1px 2px rgba(0,0,0,0.35)' : 'none',
-            background: el.hasBg ? 'rgba(255,255,255,0.72)' : 'transparent',
-            padding: el.hasBg ? '4px 6px' : '0',
-            borderRadius: el.hasBg ? '6px' : '0'
-          };
-        }
         function getEditorStageStyle() {
-          const bg = aiPPTAssembledPages.value[editingSlideIdx.value]?.background_url || '';
-          return { backgroundImage: bg ? `url(${bg})` : 'none' };
-        }
-        function getEditorElementStyle(el) {
+          const page = aiPPTAssembledPages.value[editingSlideIdx.value] || {};
+          const ds = page?.design_spec || {};
           return {
-            left: `${el.x || 0}%`,
-            top: `${el.y || 0}%`,
-            width: `${el.w || 30}%`,
-            color: el.color || '#111827',
-            fontSize: `${Math.max(12, Number(el.fontSize || 18) * 0.6)}px`,
-            fontWeight: el.bold ? '700' : '400',
-            textAlign: el.align || 'left',
-            lineHeight: `${Math.max(1.25, ((el.fontSize || 18) + (el.lineGap || 10)) / Math.max(1, (el.fontSize || 18)))}em`,
-            background: el.hasBg ? 'rgba(255,255,255,0.76)' : 'transparent',
-            boxShadow: el.shadow ? '0 4px 14px rgba(0,0,0,0.18)' : 'none'
+            '--theme-color': getPageTheme(page),
+            '--accent-color': ds.accent_color || getPageTheme(page),
+            '--bg-color': ds.bg_color || '#f8fafc',
+            '--card-color': ds.card_color || '#FFFFFF',
+            '--text-main': ds.text_main || '#1E293B',
+            '--text-sub': ds.text_sub || '#64748B',
+            '--border-color': ds.border_color || '#E2E8F0',
+            '--title-size': (ds.title_font_size || 36) + 'px',
+            '--body-size': (ds.body_font_size || 16) + 'px',
+            '--line-height-title': ds.line_height_title || 1.2,
+            '--line-height-body': ds.line_height_body || 1.6,
+            '--letter-spacing': (ds.letter_spacing || 0.3) + 'px',
+            '--border-radius-lg': (ds.border_radius_lg || 16) + 'px',
+            '--border-radius-md': (ds.border_radius_md || 8) + 'px',
+            '--border-radius-sm': (ds.border_radius_sm || 4) + 'px',
+            'font-family': ds.font_family || 'Inter,Microsoft YaHei,sans-serif'
           };
         }
-        function getEditorInlineImageStyle(page) {
-          const pos = normalizeImagePosition(page?.inline_image_position);
+        function getThumbnailSummary(page) {
+          const slots = buildSlotsFromPage(page);
+          return Object.entries(slots)
+            .filter(([key]) => key !== 'title' && key !== 'subtitle' && !key.endsWith('_title'))
+            .map(([key, value]) => Array.isArray(value) ? `${key}: ${value.join('；')}` : `${key}: ${value}`)
+            .filter(line => line.replace(/^[^:]+:\s*/, '').trim())
+            .slice(0, 3)
+.join('\n');
+        }
+        function getEditorShellStyle(page) {
           return {
-            left: `${pos.x}%`,
-            top: `${pos.y}%`,
-            width: `${pos.w}%`,
-            height: `${pos.h}%`
+            '--theme-color': getPageTheme(page),
+            '--accent-color': getPageTheme(page),
+            height: '100%'
           };
         }
-        function getEditorDividerStyle(page) {
-          const divider = getSlideDividerMetrics(page, 0, 0, 100, 100);
-          return {
-            position: 'absolute',
-            left: `${divider.x}%`,
-            top: `${divider.y}%`,
-            width: `${divider.w}%`,
-            height: '0.42%',
-            minHeight: '2px',
-            maxHeight: '4px',
-            background: divider.color,
-            borderRadius: '999px',
-            pointerEvents: 'none'
+        function isCoverLayout(layout) {
+          return layout === 'cover' || layout === 'ending';
+        }
+        function ensureSlotArray(slotKey) {
+          const page = currentEditingSlide.value;
+          if (!page) return [];
+          if (!Array.isArray(page.slots?.[slotKey])) {
+            page.slots[slotKey] = [''];
+          }
+          return page.slots[slotKey];
+        }
+        function ensureTimelineMilestones() {
+          const page = currentEditingSlide.value;
+          if (!page) return [];
+          const ms = page.slots?.milestones;
+          if (!Array.isArray(ms) || !ms.length) {
+            page.slots.milestones = [{label: '', text: '', is_current: false}, {label: '', text: '', is_current: false}, {label: '', text: '', is_current: false}];
+          } else {
+            // normalize: ensure each is {label, text, is_current}
+            page.slots.milestones = ms.map(m => {
+              if (typeof m === 'string') return {label: '', text: m, is_current: false};
+              return {label: m?.label || '', text: m?.text || m?.event || '', is_current: !!m?.is_current};
+            });
+          }
+          page.slots.is_current = page.slots.milestones.some(m => !!m?.is_current);
+          return page.slots.milestones;
+        }
+        function updateMilestoneLabel(idx, event) {
+          const page = currentEditingSlide.value;
+          if (!page?.slots?.milestones) return;
+          const ms = [...page.slots.milestones];
+          ms[idx] = {...ms[idx], label: sanitizeEditableText(event)};
+          pushHistory();
+          page.slots.milestones = ms;
+          syncEditingPageState(page);
+        }
+        function updateMilestoneText(idx, event) {
+          const page = currentEditingSlide.value;
+          if (!page?.slots?.milestones) return;
+          const ms = [...page.slots.milestones];
+          ms[idx] = {...ms[idx], text: sanitizeEditableText(event)};
+          pushHistory();
+          page.slots.milestones = ms;
+          syncEditingPageState(page);
+        }
+        function sanitizeEditableText(event) {
+          return String(event?.target?.innerText || '').replace(/ /g, '');
+        }
+        function syncEditingPageState(page) {
+          if (editingSlideIdx.value === null || !page) return;
+          const normalized = normalizePageToSlots({
+            ...page,
+            image_fit_mode: page.image_fit_mode || 'contain',
+            image_position_y: Number(page.image_position_y ?? 50),
+            font_style: {
+              title_size: fontStyle.titleSize,
+              body_size: fontStyle.bodySize,
+              font_weight: fontStyle.fontWeight,
+              title_color: fontStyle.titleColor,
+              body_color: fontStyle.bodyColor
+            }
+          });
+          normalized.image_fit_mode = page.image_fit_mode || 'contain';
+          normalized.image_position_y = Number(page.image_position_y ?? 50);
+          normalized.font_style = {
+            title_size: fontStyle.titleSize,
+            body_size: fontStyle.bodySize,
+            font_weight: fontStyle.fontWeight,
+            title_color: fontStyle.titleColor,
+            body_color: fontStyle.bodyColor
           };
+          aiPPTAssembledPages.value[editingSlideIdx.value] = normalized;
+          previewSlidePage.value = normalized;
+        }
+        function pushHistorySnapshot(pageData) {
+          const snapshot = normalizePageToSlots(deepClone(pageData));
+          historyStack.value = historyStack.value.slice(0, historyIndex.value + 1);
+          historyStack.value.push(snapshot);
+          historyIndex.value = historyStack.value.length - 1;
+        }
+        function applyHistorySnapshot(snapshot) {
+          if (editingSlideIdx.value === null || !snapshot) return;
+          const restored = normalizePageToSlots(deepClone(snapshot));
+          aiPPTAssembledPages.value[editingSlideIdx.value] = restored;
+          previewSlidePage.value = restored;
+        }
+        function pushHistory() {
+          if (currentEditingSlide.value) pushHistorySnapshot(currentEditingSlide.value);
+        }
+        function selectedSlotSummaryValue() {
+          return getEditorSummary(currentEditingSlide.value);
+        }
+        function updateSlot(slotKey, event) {
+          const page = currentEditingSlide.value;
+          if (!page?.slots) return;
+          let nextValue = sanitizeEditableText(event);
+          if (nextValue.trim() === '') nextValue = ' ';
+          if (page.slots[slotKey] === nextValue) return;
+          pushHistory();
+          page.slots[slotKey] = nextValue;
+          if (event?.target && event.target.innerText !== nextValue) {
+            event.target.innerText = nextValue;
+          }
+          syncEditingPageState(page);
+        }
+        function updateBullet(slotKey, index, event) {
+          const page = currentEditingSlide.value;
+          if (!page?.slots) return;
+          const list = ensureSlotArray(slotKey).slice();
+          let nextValue = sanitizeEditableText(event);
+          if (nextValue.trim() === '') nextValue = ' ';
+          pushHistory();
+          list[index] = nextValue;
+          page.slots[slotKey] = list;
+          if (!page.slots[slotKey].length) page.slots[slotKey] = [' '];
+          if (event?.target && event.target.innerText !== nextValue) {
+            event.target.innerText = nextValue;
+          }
+          syncEditingPageState(page);
+        }
+
+        function focusEditableBullet(slotKey, index) {
+          nextTick(() => {
+            const stage = slideEditorStage.value;
+            if (!stage) return;
+            const items = Array.from(stage.querySelectorAll('[contenteditable="plaintext-only"]'));
+            const target = items.find(el => el.getAttribute('data-slot-key') === slotKey && Number(el.getAttribute('data-bullet-index')) === index);
+            if (target) {
+              target.focus();
+              const range = document.createRange();
+              range.selectNodeContents(target);
+              range.collapse(true);
+              const selection = window.getSelection();
+              selection.removeAllRanges();
+              selection.addRange(range);
+            }
+          });
+        }
+
+        function insertBulletAfter(slotKey, index) {
+          const page = currentEditingSlide.value;
+          if (!page?.slots) return;
+          const list = ensureSlotArray(slotKey).slice();
+          pushHistory();
+          list.splice(index + 1, 0, ' ');
+          page.slots[slotKey] = list;
+          syncEditingPageState(page);
+          focusEditableBullet(slotKey, index + 1);
+        }
+
+        function removeBulletAt(slotKey, index) {
+          const page = currentEditingSlide.value;
+          if (!page?.slots) return;
+          const list = ensureSlotArray(slotKey).slice();
+          if (list.length <= 1) {
+            list[0] = ' ';
+            page.slots[slotKey] = list;
+            syncEditingPageState(page);
+            focusEditableBullet(slotKey, 0);
+            return;
+          }
+          pushHistory();
+          list.splice(index, 1);
+          page.slots[slotKey] = list;
+          syncEditingPageState(page);
+          focusEditableBullet(slotKey, Math.max(0, index - 1));
+        }
+
+        function handleBulletKeydown(slotKey, index, event) {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            updateBullet(slotKey, index, event);
+            insertBulletAfter(slotKey, index);
+            return;
+          }
+          if (event.key === 'Backspace') {
+            const text = String(event?.target?.innerText || '').replace(/ /g, '').trim();
+            if (!text) {
+              event.preventDefault();
+              removeBulletAt(slotKey, index);
+            }
+          }
+        }
+
+        function applyToAll(type) {
+          if (!aiPPTAssembledPages.value?.length || editingSlideIdx.value === null) return;
+          const currentPage = currentEditingSlide.value;
+          if (!currentPage) return;
+          const totalPages = aiPPTAssembledPages.value.length;
+          if (!window.confirm(`将覆盖所有 ${totalPages} 页的主题色/背景图，确认继续？`)) {
+            return;
+          }
+          pushHistory();
+          if (type === 'theme_color') {
+            const color = currentPage?.design_spec?.theme_color || aiPPTThemeColor.value;
+            aiPPTAssembledPages.value = aiPPTAssembledPages.value.map(page => ({
+              ...page,
+              design_spec: { ...(page.design_spec || {}), theme_color: color }
+            }));
+            aiPPTThemeColor.value = color;
+            previewSlidePage.value = aiPPTAssembledPages.value[editingSlideIdx.value];
+            addLog('✅ 已将主题色应用到所有页面', 'success');
+            return;
+          }
+          if (type === 'background') {
+            const backgroundUrl = currentPage.background_url || '';
+            aiPPTAssembledPages.value = aiPPTAssembledPages.value.map(page => ({
+              ...page,
+              background_url: backgroundUrl
+            }));
+            previewSlidePage.value = aiPPTAssembledPages.value[editingSlideIdx.value];
+            addLog('✅ 已将背景应用到所有页面', 'success');
+          }
+          if (type === 'fontStyle') {
+            aiPPTAssembledPages.value = aiPPTAssembledPages.value.map(page => ({
+              ...page,
+              font_style: {
+                title_size: fontStyle.titleSize,
+                body_size: fontStyle.bodySize,
+                font_weight: fontStyle.fontWeight,
+                title_color: fontStyle.titleColor,
+                body_color: fontStyle.bodyColor
+              }
+            }));
+            addLog('✅ 已将字体样式应用到所有页面', 'success');
+          }
+        }
+        const pendingImageSlotKey = ref('');
+        function selectImageSlot(slotKey) {
+          selectedImageSlotKey.value = slotKey;
+          pendingImageSlotKey.value = slotKey;
+        }
+        function triggerReplaceImage(slotKey) {
+          selectImageSlot(slotKey);
+          if (slotImageUpload.value) slotImageUpload.value.click();
+        }
+        function triggerPrimaryImageReplace() {
+          const slotKey = selectedImageSlotKey.value || getPrimaryImageSlot(currentEditingSlide.value?.layout_style);
+          if (!slotKey) {
+            showToast('当前版式没有主配图槽位', 'warn');
+            return;
+          }
+          selectImageSlot(slotKey);
+          if (slotImageUpload.value) slotImageUpload.value.click();
+        }
+        function replaceImage(slotKey, file) {
+          const page = currentEditingSlide.value;
+          if (!page?.slots || !slotKey || !file) return;
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            pushHistory();
+            page.slots[slotKey] = e.target.result;
+            syncEditingPageState(page);
+            addLog(`✅ 已替换图片槽位 ${slotKey}`, 'success');
+          };
+          reader.readAsDataURL(file);
+        }
+        function handleSlotImageFileChange(event) {
+          const file = event.target.files?.[0];
+          if (file && pendingImageSlotKey.value) replaceImage(pendingImageSlotKey.value, file);
+          event.target.value = '';
+        }
+        function handleLayoutStyleChange() {
+          const page = currentEditingSlide.value;
+          if (!page) return;
+          const previousLayout = aiPPTAssembledPages.value?.[editingSlideIdx.value]?.layout_style || page.layout_style;
+          const newLayout = page.layout_style;
+          selectedImageSlotKey.value = '';
+          pushHistory();
+          if (newLayout === 'timeline') {
+            const oldSlots = { ...(page.slots || {}) };
+            const legacy = extractExactContentFromSlots(previousLayout, oldSlots);
+            const newSlots = {
+              title: oldSlots.title || '',
+              subtitle: oldSlots.subtitle || '',
+              milestones: legacy.length
+                ? legacy.map((t, i) => ({ label: `阶段${i+1}`, text: typeof t === 'string' ? t.replace(/^阶段\d+:\s*/, '') : String(t), is_current: i === 0 && !!oldSlots.is_current }))
+                : [{ label: '', text: '', is_current: false }, { label: '', text: '', is_current: false }, { label: '', text: '', is_current: false }],
+              is_current: !!oldSlots.is_current
+            };
+            syncEditingPageState({ ...page, layout_style: newLayout, slots: newSlots });
+            return;
+          }
+          syncEditingPageState({ ...page, layout_style: page.layout_style, slots: page.slots });
+        }
+        function getImageStyle(page) {
+          return {
+            '--image-fit': page?.image_fit_mode || 'contain',
+            '--image-position-y': `${Number(page?.image_position_y ?? 50)}%`
+          };
+        }
+        function handleTextSelection() {
+          const selection = window.getSelection();
+          const anchorParent = selection?.anchorNode?.parentNode;
+          if (selection && selection.toString().length > 0 && anchorParent?.hasAttribute?.('contenteditable')) {
+            const range = selection.getRangeAt(0).getBoundingClientRect();
+            toolbarX.value = range.left + range.width / 2 - 50;
+            toolbarY.value = range.top - 50;
+            showToolbar.value = true;
+          } else {
+            showToolbar.value = false;
+          }
+        }
+        function formatText(command, value = null) {
+          document.execCommand(command, false, value);
+          showToolbar.value = false;
+          pushHistory();
+        }
+        function adjustSelectionFontSize(delta) {
+          const selection = window.getSelection();
+          const anchorNode = selection?.anchorNode;
+          const editable = anchorNode?.nodeType === Node.TEXT_NODE ? anchorNode.parentElement : anchorNode;
+          const editableRoot = editable?.closest?.('[contenteditable]');
+          if (!editableRoot) return;
+          const current = parseInt(window.getComputedStyle(editableRoot).fontSize, 10) || 16;
+          const next = Math.max(12, Math.min(48, current + delta));
+          editableRoot.style.fontSize = `${next}px`;
+          showToolbar.value = false;
+          pushHistory();
+          syncEditingPageState(currentEditingSlide.value);
+        }
+        function updateThemeColor(color) {
+          const page = currentEditingSlide.value;
+          if (!page) return;
+          pushHistory();
+          page.design_spec = { ...(page.design_spec || {}), theme_color: color };
+          syncEditingPageState(page);
+        }
+        function buildSlideSnapshotHtml(page) {
+          const slots = buildSlotsFromPage(page);
+          const theme = getPageTheme(page);
+          const bg = page.background_url ? `<div style="position:absolute;inset:0;background-image:url('${page.background_url}');background-size:cover;background-position:center;opacity:${isCoverLayout(page.layout_style) ? 0.38 : 0.22};"></div>` : '';
+          const bulletList = (items=[]) => `<ul style="font-size:22px;color:#334155;line-height:1.6;padding-left:1.2em;margin:0;">${items.map(item => `<li>${item || ''}</li>`).join('')}</ul>`;
+          const imageHtml = (src='') => src ? `<img src="${src}" style="width:100%;height:100%;object-fit:contain;border-radius:8px;" />` : `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;min-height:220px;color:#64748b;border:2px dashed #cbd5e1;border-radius:8px;">无图片</div>`;
+          const card = (content='') => `<div style="background:rgba(255,255,255,0.7);border:1px solid rgba(226,232,240,0.85);border-radius:12px;padding:20px;overflow:visible;">${content}</div>`;
+          let inner = '';
+          if (isCoverLayout(page.layout_style)) {
+            inner = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;text-align:center;gap:12px;position:relative;z-index:1;"><h1 style="font-size:42px;font-weight:700;color:${theme};margin:0;">${slots.title || ''}</h1><h3 style="font-size:22px;color:#64748b;margin:0;">${slots.subtitle || ''}</h3></div>`;
+          } else if (page.layout_style === 'text_left_chart_right') {
+            inner = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:30px;height:100%;position:relative;z-index:1;">${card(`<h1 style="font-size:36px;font-weight:700;color:${theme};margin:0;">${slots.title || ''}</h1><h3 style="font-size:20px;color:#64748b;margin:4px 0 12px;">${slots.subtitle || ''}</h3>${bulletList(slots.body_left || [])}`)}${card(imageHtml(slots.image_right || ''))}</div>`;
+          } else if (page.layout_style === 'image_left_text_right') {
+            inner = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:30px;height:100%;position:relative;z-index:1;">${card(imageHtml(slots.image_left || ''))}${card(`<h1 style="font-size:36px;font-weight:700;color:${theme};margin:0;">${slots.title || ''}</h1><h3 style="font-size:20px;color:#64748b;margin:4px 0 12px;">${slots.subtitle || ''}</h3>${bulletList(slots.body_right || [])}`)}</div>`;
+          } else if (page.layout_style === 'comparison') {
+            inner = `<div style="display:grid;grid-template-rows:auto auto 1fr;grid-template-columns:1fr 1fr;gap:8px 30px;height:100%;position:relative;z-index:1;"><h1 style="grid-column:1/-1;font-size:36px;font-weight:700;color:${theme};margin:0;text-align:center;">${slots.title || ''}</h1><h3 style="grid-column:1/-1;font-size:20px;color:#64748b;margin:0 0 12px;text-align:center;">${slots.subtitle || ''}</h3>${card(`${bulletList(slots.body_left || [])}`)}${card(`${bulletList(slots.body_right || [])}`)}</div>`;
+          } else if (page.layout_style === 'three_columns') {
+            inner = `<div style="display:grid;grid-template-rows:auto auto 1fr;grid-template-columns:1fr 1fr 1fr;gap:8px 16px;height:100%;position:relative;z-index:1;"><h1 style="grid-column:1/-1;font-size:36px;font-weight:700;color:${theme};margin:0;">${slots.title || ''}</h1><h3 style="grid-column:1/-1;font-size:20px;color:#64748b;margin:0 0 12px;">${slots.subtitle || ''}</h3>${['col1','col2','col3'].map(key => card(`${bulletList(slots[key] || [])}`)).join('')}</div>`;
+          } else if (page.layout_style === 'grid_4') {
+            inner = `<div style="display:grid;grid-template-rows:auto auto 1fr 1fr;grid-template-columns:1fr 1fr;gap:8px 20px;height:100%;position:relative;z-index:1;"><h1 style="grid-column:1/-1;font-size:36px;font-weight:700;color:${theme};margin:0;">${slots.title || ''}</h1><h3 style="grid-column:1/-1;font-size:20px;color:#64748b;margin:0 0 12px;">${slots.subtitle || ''}</h3>${['g1','g2','g3','g4'].map(key => card(`<div style="white-space:pre-wrap;color:#334155;line-height:1.5;font-size:18px;">${slots[key] || ''}</div>`)).join('')}</div>`;
+          } else if (page.layout_style === 'data_focus') {
+            inner = `<div style="display:grid;grid-template-rows:auto auto 1fr 2fr;gap:8px;height:100%;position:relative;z-index:1;"><h1 style="font-size:36px;font-weight:700;color:${theme};margin:0;">${slots.title || ''}</h1><h3 style="font-size:20px;color:#64748b;margin:0 0 12px;">${slots.subtitle || ''}</h3>${card(bulletList(slots.body || []))}${card(imageHtml(slots.image_bottom || ''))}</div>`;
+          } else if (page.layout_style === 'timeline') {
+            const msArr = Array.isArray(slots.milestones) ? slots.milestones : [];
+            const nodes = msArr.map(ms => {
+              const lbl = (ms && typeof ms === 'object' ? ms.label : '') || '';
+              const txt = (ms && typeof ms === 'object' ? (ms.text || ms.event) : String(ms || ''));
+              return `<div style="display:flex;align-items:flex-start;gap:12px;padding-left:45px;"><span style="min-width:90px;text-align:right;font-size:16px;font-weight:600;color:${theme};">${lbl}</span><span style="font-size:20px;color:#334155;line-height:1.4;">${txt}</span></div>`;
+            }).join('');
+            const axis = msArr.length ? `<div style="position:absolute;left:98px;top:16px;bottom:16px;width:2px;background:#cbd5e1;border-radius:1px;"></div>${msArr.map((_, i) => `<div style="position:absolute;left:94px;top:${24 + i * 46}px;width:10px;height:10px;border-radius:50%;background:${theme};border:2px solid #fff;box-shadow:0 0 0 2px ${theme};z-index:1;"></div>`).join('')}` : '';
+            inner = `<div style="display:grid;grid-template-rows:auto auto 1fr;gap:8px;height:100%;position:relative;z-index:1;"><h1 style="font-size:36px;font-weight:700;color:${theme};margin:0;">${slots.title || ''}</h1><h3 style="font-size:20px;color:#64748b;margin:0 0 12px;">${slots.subtitle || ''}</h3><div style="position:relative;padding-left:60px;">${axis}<div style="display:flex;flex-direction:column;gap:20px;position:relative;z-index:1;">${nodes}</div></div></div>`;
+          } else {
+            inner = `<div style="display:grid;grid-template-rows:auto auto 1fr;gap:8px;height:100%;position:relative;z-index:1;"><h1 style="font-size:36px;font-weight:700;color:${theme};margin:0;">${slots.title || ''}</h1><h3 style="font-size:20px;color:#64748b;margin:0 0 12px;">${slots.subtitle || ''}</h3>${card(bulletList(slots.bullets || []))}</div>`;
+          }
+          const divider = showSlideDivider(page) ? `<div style="position:absolute;top:14%;left:5%;width:88%;height:4px;border-radius:999px;background:${theme};opacity:0.85;z-index:1;"></div>` : '';
+          return `<div style="position:relative;width:1280px;height:720px;background:${page?.design_spec?.bg_color || '#f8fafc'};overflow:hidden;padding:40px 60px;box-sizing:border-box;">${bg}${divider}${inner}</div>`;
         }
         // [修复] PPT 预览函数移到顶层，模板可访问
         function openPptPreview(imageUrl) {
           previewSlidePage.value = null;
-          currentPreviewPptImg.value = imageUrl;
+          currentPreviewPptImg.value = imageUrl || null;
           showPptPreview.value = true;
-          addLog('打开 PPT 大图预览', 'info');
+          if (imageUrl) {
+            addLog('🔍 打开 PPT 大图预览', 'info');
+          }
         }
         function openSlidePreview(idx) {
           const page = aiPPTAssembledPages.value[idx];
           if (!page) return;
-          previewSlidePage.value = null;
-          openPptPreview(page.background_url || '');
+          previewSlidePage.value = page;
+          currentPreviewPptImg.value = null;
+          showPptPreview.value = true;
+          nextTick(() => {
+            if (pptPreviewCanvas.value && previewSlidePage.value) {
+              renderSlideToCanvas(previewSlidePage.value, pptPreviewCanvas.value);
+            }
+          });
           addLog(`🔍 打开第 ${page.page_number} 页预览`, 'info');
         }
         const currentEditingSlide = computed(() => {
           if (editingSlideIdx.value === null) return null;
           return aiPPTAssembledPages.value[editingSlideIdx.value] || null;
         });
-        const selectedEditorElement = computed(() => {
-          const page = currentEditingSlide.value;
-          if (!page || selectedEditorElementIdx.value === null) return null;
-          return page.elements?.[selectedEditorElementIdx.value] || null;
-        });
-        function selectEditorElement(idx) {
-          selectedEditorImage.value = false;
-          selectedEditorElementIdx.value = idx;
+        const selectedSlotSummary = computed(() => selectedSlotSummaryValue());
+        const selectedImageSlot = computed(() => !!selectedImageSlotKey.value);
+        const canUndo = computed(() => historyIndex.value > 0);
+        const canRedo = computed(() => historyIndex.value >= 0 && historyIndex.value < historyStack.value.length - 1);
+        function undo() {
+          if (!canUndo.value) return;
+          historyIndex.value -= 1;
+          applyHistorySnapshot(historyStack.value[historyIndex.value]);
         }
-        function selectEditorImage() {
-          selectedEditorElementIdx.value = null;
-          selectedEditorImage.value = true;
+        function redo() {
+          if (!canRedo.value) return;
+          historyIndex.value += 1;
+          applyHistorySnapshot(historyStack.value[historyIndex.value]);
         }
         function openSlideEditor(idx) {
           if (!aiPPTAssembledPages.value[idx]) return;
           editingSlideIdx.value = idx;
-          selectedEditorImage.value = false;
-          selectedEditorElementIdx.value = aiPPTAssembledPages.value[idx].elements?.length ? 0 : null;
+          selectedImageSlotKey.value = '';
+          const page = normalizePageToSlots(aiPPTAssembledPages.value[idx]);
+          aiPPTAssembledPages.value[idx] = page;
+          previewSlidePage.value = page;
+          resetFontStyle(aiPPTAssembledPages.value[idx]);
+          historyStack.value = [];
+          historyIndex.value = -1;
+          pushHistorySnapshot(page);
           showSlideEditor.value = true;
+          nextTick(() => applyFontStyle());
           addLog(`✏️ 打开第 ${aiPPTAssembledPages.value[idx].page_number} 页编辑器`, 'info');
         }
         function closeSlideEditor() {
+          if (document.activeElement && document.activeElement.hasAttribute('contenteditable')) {
+            document.activeElement.blur();
+          }
+          showToolbar.value = false;
+          selectedImageSlotKey.value = '';
           showSlideEditor.value = false;
-          slideDragState.active = false;
-          slideDragState.type = null;
-          selectedEditorElementIdx.value = null;
-          selectedEditorImage.value = false;
           editingSlideIdx.value = null;
+          historyStack.value = [];
+          historyIndex.value = -1;
           addLog('✅ 幻灯片编辑已保存', 'success');
         }
-        function startDragEditorElement(event, idx) {
-          const el = currentEditingSlide.value?.elements?.[idx];
-          if (!el) return;
-          selectEditorElement(idx);
-          slideDragState.active = true;
-          slideDragState.type = 'text';
-          slideDragState.startX = event.clientX;
-          slideDragState.startY = event.clientY;
-          slideDragState.originX = Number(el.x || 0);
-          slideDragState.originY = Number(el.y || 0);
-        }
-        function startDragEditorImage(event) {
-          const page = currentEditingSlide.value;
-          if (!page?.inline_image_position) return;
-          selectEditorImage();
-          slideDragState.active = true;
-          slideDragState.type = 'image';
-          slideDragState.startX = event.clientX;
-          slideDragState.startY = event.clientY;
-          slideDragState.originX = Number(page.inline_image_position.x || 0);
-          slideDragState.originY = Number(page.inline_image_position.y || 0);
-        }
-        function handleEditorContainerMouseDown(event) {
-          const target = event.target.closest('.draggable-element');
-          if (!target) {
-            selectedEditorElementIdx.value = null;
-            selectedEditorImage.value = false;
-            return;
-          }
-          if (target.classList.contains('editor-inline-image')) {
-            startDragEditorImage(event);
-            return;
-          }
-          const idx = Number(target.dataset.elementIndex || -1);
-          if (idx >= 0) startDragEditorElement(event, idx);
-        }
-        function handleSlideDragMove(event) {
-          if (!slideDragState.active || !slideEditorStage.value) return;
-          const rect = slideEditorStage.value.getBoundingClientRect();
-          let deltaX = ((event.clientX - slideDragState.startX) / rect.width) * 100;
-          let deltaY = ((event.clientY - slideDragState.startY) / rect.height) * 100;
 
-          // 极简网格吸附设定
-          const SNAP_STEP = 2;
-          const isShiftPressed = event.shiftKey;
 
-          let newX = slideDragState.originX + deltaX;
-          let newY = slideDragState.originY + deltaY;
 
-          if (!isShiftPressed) {
-            newX = Math.round(newX / SNAP_STEP) * SNAP_STEP;
-            newY = Math.round(newY / SNAP_STEP) * SNAP_STEP;
-          }
 
-          if (slideDragState.type === 'image') {
-            const page = currentEditingSlide.value;
-            if (!page?.inline_image_position) return;
-            page.inline_image_position.x = Math.max(0, Math.min(95, newX));
-            page.inline_image_position.y = Math.max(0, Math.min(95, newY));
-            aiPPTAssembledPages.value[editingSlideIdx.value] = { ...page };
-            return;
-          }
 
-          if (!selectedEditorElement.value) return;
-          selectedEditorElement.value.x = Math.max(0, Math.min(95, newX));
-          selectedEditorElement.value.y = Math.max(0, Math.min(95, newY));
-          aiPPTAssembledPages.value[editingSlideIdx.value] = { ...currentEditingSlide.value };
-        }
-        function handleSlideDragEnd() {
-          slideDragState.active = false;
-          slideDragState.type = null;
-        }
-        function addEditorElement() {
-          const page = currentEditingSlide.value;
-          if (!page) return;
-          if (!Array.isArray(page.elements)) page.elements = [];
-          page.elements.push({
-            id: 'custom_' + Date.now(),
-            text: '新文字',
-            x: 10,
-            y: 10,
-            w: 30,
-            h: 12,
-            fontSize: 20,
-            color: '#111827',
-            bold: false,
-            align: 'left',
-            hasBg: true,
-            shadow: false
-          });
-          aiPPTAssembledPages.value[editingSlideIdx.value] = { ...page };
-          selectedEditorImage.value = false;
-          selectedEditorElementIdx.value = page.elements.length - 1;
-        }
-        function removeEditorElement() {
-          const page = currentEditingSlide.value;
-          if (!page || selectedEditorElementIdx.value === null) return;
-          page.elements.splice(selectedEditorElementIdx.value, 1);
-          aiPPTAssembledPages.value[editingSlideIdx.value] = { ...page };
-          selectedEditorElementIdx.value = page.elements.length ? Math.min(selectedEditorElementIdx.value, page.elements.length - 1) : null;
-          selectedEditorImage.value = false;
-        }
-        function removeEditorImage() {
-          const page = currentEditingSlide.value;
-          if (!page) return;
-          page.inline_image_url = null;
-          page.inline_image_position = null;
-          page.inline_image = null;
-          aiPPTAssembledPages.value[editingSlideIdx.value] = { ...page };
-          selectedEditorImage.value = false;
-        }
+
+
+
         // 元素层级控制 (上移/下移)
-        function moveElementUp() {
-          const page = currentEditingSlide.value;
-          const idx = selectedEditorElementIdx.value;
-          if (!page || idx === null || idx >= page.elements.length - 1) return;
 
-          const temp = page.elements[idx];
-          page.elements[idx] = page.elements[idx + 1];
-          page.elements[idx + 1] = temp;
 
-          selectedEditorElementIdx.value = idx + 1;
-          aiPPTAssembledPages.value[editingSlideIdx.value] = { ...page };
-        }
-        function moveElementDown() {
-          const page = currentEditingSlide.value;
-          const idx = selectedEditorElementIdx.value;
-          if (!page || idx === null || idx <= 0) return;
-
-          const temp = page.elements[idx];
-          page.elements[idx] = page.elements[idx - 1];
-          page.elements[idx - 1] = temp;
-
-          selectedEditorElementIdx.value = idx - 1;
-          aiPPTAssembledPages.value[editingSlideIdx.value] = { ...page };
-        }
         // 本地图片直传替换 (自动转 Base64 供 Canvas 和导出使用)
         function replaceBackgroundImage(event) {
           const file = event.target.files[0];
@@ -2343,32 +3256,10 @@
           reader.onload = (e) => {
             const page = currentEditingSlide.value;
             if (page) {
+              pushHistory();
               page.background_url = e.target.result;
-              aiPPTAssembledPages.value[editingSlideIdx.value] = { ...page };
+              syncEditingPageState(page);
               addLog('✅ 背景图已通过本地上传替换', 'success');
-            }
-            event.target.value = ''; // 清空 input 允许重复上传
-          };
-          reader.readAsDataURL(file);
-        }
-        function replaceInlineImage(event) {
-          const file = event.target.files[0];
-          if (!file) return;
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            const page = currentEditingSlide.value;
-            if (page) {
-              page.inline_image_url = e.target.result;
-              if (!page.inline_image_position) {
-                page.inline_image_position = getImagePosition(page.layout_style) || { x: 30, y: 15, w: 40, h: 70 };
-              }
-              const inlineImg = new Image();
-              inlineImg.crossOrigin = 'anonymous';
-              inlineImg.src = e.target.result;
-              page.inline_image = inlineImg;
-              aiPPTAssembledPages.value[editingSlideIdx.value] = { ...page };
-              addLog('✅ 内联配图已通过本地上传替换', 'success');
-              selectEditorImage();
             }
             event.target.value = '';
           };
@@ -2433,6 +3324,7 @@
             three_columns: '📐 三列并排',
             grid_4: '🔲 四宫格',
             data_focus: '📈 数据聚焦',
+            timeline: '🕐 时间轴',
             ending: '📄 结尾'
           };
           return map[layoutStyle] || '📝 正文';
@@ -2448,6 +3340,7 @@
           aiPPTOutlineLoading.value = true;
           aiPPTBackgrounds.value = [];
           aiPPTSelectedPage.value = null;
+          showLoading('正在理解内容...');
           addLog('🤖 正在生成 PPT 大纲...', 'info');
           try {
             const resp = await fetchWithTimeout(`${API_BASE_URL}/ai/generate-ppt-outline`, {
@@ -2461,13 +3354,9 @@
             });
             const data = await resp.json();
             if (data.code !== 0) throw new Error(data.msg);
+            showLoading('正在设计视觉风格...');
             // 使用版式坐标字典自动生成 elements
-            const pages = data.data.pages;
-            pages.forEach(page => {
-              if (!page.elements) {
-                page.elements = getLayoutCoords(page.layout_style || 'content', page);
-              }
-            });
+            const pages = data.data.pages.map(page => normalizePageToSlots(page));
             // 保存 cover_prompt / body_prompt / ending_prompt 供背景生成用
             aiPPTOutlineDesc.value = {
               cover_prompt: data.data.cover_prompt || '',
@@ -2479,8 +3368,9 @@
             aiPPTThemeColor.value = ds.theme_color || '#1e3a8a';
             // 同步到 outline 供后续 layout 用
             data.data.theme_color = aiPPTThemeColor.value;
-            aiPPTOutline.value = data.data;
+            aiPPTOutline.value = { ...data.data, pages };
             aiPPTSelectedPage.value = 0;
+            showLoading('正在编排页面内容...');
             addLog(`✅ PPT 大纲生成成功，共 ${pages.length} 页`, 'success');
             showToast(`大纲生成成功，共 ${data.data.pages.length} 页`, 'success');
           } catch (e) {
@@ -2488,43 +3378,38 @@
             showToast(`大纲生成失败: ${e.message}`, 'error');
           } finally {
             aiPPTOutlineLoading.value = false;
+            hideLoading();
           }
         }
 
         function assemblePPT() {
-          const slides = aiPPTSlidesLayout.value?.slides || [];
-          const images = aiPPTAllImages.value || {};
           const pages = aiPPTOutline.value?.pages || [];
-          const assembled = slides.map(slide => {
-            const page = pages.find(p => p.page_number === slide.page_number) || {};
+          const images = aiPPTAllImages.value || {};
+          const assembled = pages.map(page => {
             let bgUrl = images.body?.image_url || '';
-            if (slide.layout_style === 'cover') bgUrl = images.cover?.image_url || bgUrl;
-            else if (slide.layout_style === 'ending') bgUrl = images.ending?.image_url || bgUrl;
-            else bgUrl = images.body?.image_url || '';
-            let inlineImgUrl = null;
-            if (slide.has_image && slide.image_prompt) {
-              const inlineKey = 'inline_slide' + slide.page_number;
-              inlineImgUrl = images[inlineKey]?.image_url || null;
+            if (page.layout_style === 'cover') bgUrl = images.cover?.image_url || bgUrl;
+            else if (page.layout_style === 'ending') bgUrl = images.ending?.image_url || bgUrl;
+            const slots = buildSlotsFromPage(page);
+            const imageSlot = getPrimaryImageSlot(page.layout_style);
+            if (imageSlot && images['inline_slide' + page.page_number]?.image_url) {
+              slots[imageSlot] = images['inline_slide' + page.page_number].image_url;
             }
-            return {
-              page_number: slide.page_number,
-              title: page.title || slide.title || '',
-              subtitle: page.subtitle || slide.subtitle || '',
-              layout_style: slide.layout_style,
+            return normalizePageToSlots({
+              ...page,
               background_url: bgUrl,
-              inline_image_url: inlineImgUrl,
-              inline_image_position: slide.image_position || null,
               design_spec: aiPPTOutline.value?.design_spec || {},
-              elements: (slide.elements && slide.elements.length > 0) ? slide.elements : getLayoutCoords(slide.layout_style || page.layout_style || 'content', page, aiPPTThemeColor.value)
-            };
+              slots
+            });
           });
           aiPPTAssembledPages.value = assembled;
           addLog(`✅ PPT组装完成，共 ${assembled.length} 页`, 'success');
         }
 
+
         async function generatePPTBackgrounds() {
           if (!aiPPTOutline.value || !aiPPTOutline.value.pages) return;
           aiPPTBackgroundsLoading.value = true;
+          showLoading('正在为封面绘制视觉...');
           const outline = aiPPTOutline.value;
           const desc = aiPPTOutlineDesc.value || {};
           const pages = outline.pages || [];
@@ -2541,7 +3426,7 @@
             // 1. 提取所有插图 (图文版式页的 inline_image_prompt)
             const inlineImages = [];
             pages.forEach(page => {
-              if (IMAGE_LAYOUTS.includes(page.layout_style) && page.inline_image_prompt) {
+              if (IMAGE_CAPABLE_LAYOUTS.includes(page.layout_style) && page.inline_image_prompt) {
                 inlineImages.push({
                   key: 'inline_slide' + page.page_number,
                   prompt: page.inline_image_prompt,
@@ -2551,6 +3436,7 @@
             });
 
             // 2. 直接发送给画图接口 (封面 + 正文底图 + 尾页 + 插图)
+            showLoading('正在生成正文底图...');
             const imageResp = await fetchWithTimeout(`${API_BASE_URL}/ai/generate-ppt-backgrounds`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -2567,6 +3453,10 @@
             if (imageData.code !== 0) throw new Error(imageData.msg || '图片生成失败');
 
             const results = imageData.data || {};
+            const inlineTotal = inlineImages.length;
+            if (inlineTotal > 0) {
+              showLoading(`正在绘制插图(${inlineTotal}/${inlineTotal})...`);
+            }
             aiPPTAllImages.value = results;
 
             // 3. 组装版式数据 (图文版式固定配图坐标)
@@ -2574,10 +3464,9 @@
               slides: pages.map(p => ({
                 page_number: p.page_number,
                 layout_style: p.layout_style,
-                has_image: IMAGE_LAYOUTS.includes(p.layout_style) && !!p.inline_image_prompt,
+                has_image: IMAGE_CAPABLE_LAYOUTS.includes(p.layout_style) && !!p.inline_image_prompt,
                 image_prompt: p.inline_image_prompt,
-                image_position: getImagePosition(p.layout_style),
-                elements: getLayoutCoords(p.layout_style, p, aiPPTThemeColor.value)
+                image_position: null
               }))
             };
 
@@ -2591,6 +3480,12 @@
 
             assemblePPT();
 
+            // 自动展开 PPTist 编辑器 iframe
+            nextTick(() => {
+              showPPTistEditor.value = true;
+              addLog('📝 编辑器已就绪，可在下方精修后确认', 'success');
+            });
+
             const fail = aiPPTBackgrounds.value.filter(bg => bg.status === 'failed').length;
             addLog(`✅ 生成完成，${fail} 失败`, fail > 0 ? 'warn' : 'success');
             showToast(`PPT 组装完成`, fail > 0 ? 'warn' : 'success');
@@ -2599,6 +3494,7 @@
             showToast(`生成失败: ${e.message}`, 'error');
           } finally {
             aiPPTBackgroundsLoading.value = false;
+            hideLoading();
           }
         }
 
@@ -2666,6 +3562,133 @@
           }
         }
 
+        // 重新生成封面/尾页背景
+        async function regenerateCoverEndingBackground(idx) {
+          const page = aiPPTAssembledPages.value[idx];
+          if (!page) return;
+          const layout = page.layout_style;
+          if (layout !== 'cover' && layout !== 'ending') return;
+          const outline = aiPPTOutline.value || {};
+          const ds = outline.design_spec || {};
+          const imageStyle = ds.overall_style || 'tech_blue';
+          const prompt = (layout === 'cover' ? outline.cover_prompt : outline.ending_prompt) ||
+            `presentation ${layout} background, ${imageStyle} style, premium quality, 16:9, no text --no watermark, text`;
+          addLog(`🎨 正在重新生成${layout === 'cover' ? '封面' : '尾页'}背景...`, 'info');
+          try {
+            const resp = await fetchWithTimeout(`${API_BASE_URL}/ai/generate-ppt-backgrounds`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                cover_prompt: layout === 'cover' ? prompt : '',
+                ending_prompt: layout === 'ending' ? prompt : '',
+                body_prompt: '',
+                model: aiPPTImageModel.value
+              })
+            }, 300000);
+            const data = await resp.json();
+            if (data.code !== 0) throw new Error(data.msg || '生成失败');
+            const result = data.data || {};
+            const key = layout; // 'cover' or 'ending'
+            const val = result[key];
+            if (val?.image_url) {
+              aiPPTAllImages.value = { ...aiPPTAllImages.value, [key]: val };
+              page.background_url = val.image_url;
+              syncEditingPageState(page);
+              assemblePPT();
+              addLog(`✅ ${layout === 'cover' ? '封面' : '尾页'}背景已更新`, 'success');
+            } else {
+              addLog(`⚠️ 背景生成返回空`, 'warn');
+            }
+          } catch (e) {
+            addLog(`❌ 背景重生成失败: ${e.message}`, 'error');
+          }
+        }
+
+        // 重新生成当前页配图（不依赖旧 slide）
+        async function regeneratePageImage(idx) {
+          const page = aiPPTAssembledPages.value[idx];
+          if (!page) return;
+          const layout = page.layout_style;
+          if (layout === 'cover' || layout === 'ending') return;
+          // 取当前编辑的提示词
+          const prompt = currentSlideImagePrompt.value || '';
+          if (!prompt) {
+            addLog('⚠️ 请先输入配图提示词', 'warn');
+            return;
+          }
+          const inlineKey = 'inline_slide' + (page.page_number || (idx + 1));
+          addLog(`🖼️ 正在重新生成第 ${page.page_number} 页配图...`, 'info');
+          try {
+            const resp = await fetchWithTimeout(`${API_BASE_URL}/ai/generate-ppt-backgrounds`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                cover_prompt: '', body_prompt: '', ending_prompt: '',
+                inline_images: [{ key: inlineKey, prompt: prompt, page_number: page.page_number || (idx + 1) }],
+                model: aiPPTImageModel.value
+              })
+            }, 300000);
+            const data = await resp.json();
+            if (data.code !== 0) throw new Error(data.msg || '重生成失败');
+            const val = data.data?.[inlineKey];
+            if (!val?.image_url) throw new Error('未返回配图');
+            aiPPTAllImages.value = { ...aiPPTAllImages.value, [inlineKey]: val };
+            // 把图片 URL 注入到对应 slot
+            if (page.slots) {
+              const imgSlot = getPrimaryImageSlot(layout);
+              if (imgSlot) page.slots[imgSlot] = val.image_url;
+            }
+            syncEditingPageState(page);
+            assemblePPT();
+            addLog(`✅ 第 ${page.page_number} 页配图已更新`, 'success');
+          } catch (e) {
+            addLog(`❌ 第 ${page.page_number} 页配图重生成失败: ${e.message}`, 'error');
+          }
+        }
+
+        // 当前页配图提示词（可读写）
+        const currentSlideImagePrompt = computed({
+          get: () => {
+            const page = currentEditingSlide.value;
+            if (!page) return '';
+            const outline = aiPPTOutline.value || {};
+            return page.inline_image_prompt ||
+              (outline.pages?.find(p => p.page_number === page.page_number)?.inline_image_prompt) ||
+              '';
+          },
+          set: (val) => {
+            const page = currentEditingSlide.value;
+            if (page) page.inline_image_prompt = val;
+          }
+        });
+
+        const draggedOutlinePageIndex = ref(null);
+        function reindexOutlinePages() {
+          if (!aiPPTOutline.value?.pages) return;
+          aiPPTOutline.value.pages = aiPPTOutline.value.pages.map((page, idx) => ({
+            ...page,
+            page_number: idx + 1
+          }));
+        }
+        function handleOutlineDragStart(idx) {
+          draggedOutlinePageIndex.value = idx;
+        }
+        function handleOutlineDragOver(idx) {
+          return idx;
+        }
+        function handleOutlineDrop(idx) {
+          if (!aiPPTOutline.value?.pages) return;
+          const fromIdx = draggedOutlinePageIndex.value;
+          if (fromIdx === null || fromIdx === idx) return;
+          const pages = [...aiPPTOutline.value.pages];
+          const [moved] = pages.splice(fromIdx, 1);
+          pages.splice(idx, 0, moved);
+          aiPPTOutline.value.pages = pages;
+          reindexOutlinePages();
+          aiPPTSelectedPage.value = idx;
+          draggedOutlinePageIndex.value = null;
+          addLog('✅ 大纲页顺序已更新', 'success');
+        }
         function addBullet() {
           if (!aiPPTOutline.value || aiPPTSelectedPage.value === null) return;
           const page = aiPPTOutline.value.pages[aiPPTSelectedPage.value];
@@ -2679,14 +3702,306 @@
           }
         }
 
+        const PPTIST_EDITOR_URL = 'https://7ae3b6e0.avatar-broadcast-v3.pages.dev/editor/';
+
+        function escapeHtml(value) {
+          return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+        }
+
+        function toPptistBulletHtml(items = []) {
+          return '<ul>' + items
+            .filter(Boolean)
+            .map(item => `<li><span style="font-size:16px;color:#334155;">${escapeHtml(item)}</span></li>`)
+            .join('') + '</ul>';
+        }
+
+        function convertToPPTistFormat(outline, pages) {
+          const designSpec = outline?.design_spec || {};
+          const ds = designSpec;
+          const theme = {
+            backgroundColor: ds.bg_color || '#FFFFFF',
+            themeColors: [
+              ds.theme_color || '#3B82F6',
+              ds.accent_color || '#8B5CF6',
+              ds.text_main || '#1E293B',
+              ds.text_sub || '#64748B',
+              ds.border_color || '#E2E8F0',
+              ds.card_color || '#FFFFFF'
+            ],
+            fontColor: ds.text_main || '#1E293B',
+            fontName: (ds.font_family || 'Microsoft YaHei').split(',')[0].trim()
+          };
+
+          const titleFontSize = ds.title_font_size || 28;
+          const bodyFontSize = ds.body_font_size || 18;
+          const margin = ds.page_margin || 80;
+          const accent = ds.accent_color || '#8B5CF6';
+          const theme_color = ds.theme_color || '#3B82F6';
+          const text_main = ds.text_main || '#1E293B';
+          const text_sub = ds.text_sub || '#64748B';
+          const card_bg = ds.card_color || '#FFFFFF';
+          const border_color = ds.border_color || '#E2E8F0';
+
+          const slides = (pages || []).map((rawPage, idx) => {
+            const page = normalizePageToSlots(rawPage);
+            const slots = page.slots || {};
+            const layout = page.layout_style || 'text_only';
+            const title = slots.title || page.title || '';
+            const subtitle = slots.subtitle || page.subtitle || '';
+            const elements = [];
+            let y = margin * 0.5;
+
+            const addTitle = () => {
+              if (title) {
+                elements.push({ type: 'text', id: `title-${idx}`, left: margin, top: y, width: 1000 - 2*margin, height: titleFontSize*1.5, rotate: 0,
+                  content: `<p style="font-size:${titleFontSize}px;font-weight:700;color:${text_main};line-height:${ds.line_height_title||1.2};">${escapeHtml(title)}</p>`,
+                  defaultFontName: theme.fontName, defaultColor: text_main, textType: 'title' });
+                y += titleFontSize * 1.8;
+              }
+            };
+            const addSubtitle = () => {
+              if (subtitle) {
+                elements.push({ type: 'text', id: `subtitle-${idx}`, left: margin, top: y, width: 1000 - 2*margin, height: bodyFontSize*1.3, rotate: 0,
+                  content: `<p style="font-size:${bodyFontSize*0.75}px;color:${text_sub};line-height:${ds.line_height_body||1.6};">${escapeHtml(subtitle)}</p>`,
+                  defaultFontName: theme.fontName, defaultColor: text_sub, textType: 'subtitle' });
+                y += bodyFontSize * 2;
+              }
+            };
+            const addBullets = (items, label) => {
+              if (items && items.length) {
+                const h = Math.max(150, items.length * bodyFontSize * 2);
+                let html = '';
+                if (label) html += `<p style="font-size:${bodyFontSize*0.7}px;color:${theme_color};font-weight:600;margin-bottom:4px;">${escapeHtml(label)}</p>`;
+                html += items.map(t => `<p style="font-size:${bodyFontSize}px;color:${text_main};line-height:${ds.line_height_body||1.6};margin:2px 0;">• ${escapeHtml(t)}</p>`).join('');
+                elements.push({ type: 'text', id: `bullets-${idx}`, left: margin, top: y, width: 1000 - 2*margin, height: h, rotate: 0,
+                  content: html, defaultFontName: theme.fontName, defaultColor: text_main, textType: 'content' });
+                y += h + 10;
+              }
+            };
+
+            // 封面/尾页
+            if (layout === 'cover' || layout === 'ending') {
+              addTitle();
+              addSubtitle();
+            }
+            // 左文右图
+            else if (layout === 'text_left_chart_right') {
+              addTitle();
+              addSubtitle();
+              addBullets(slots.body_left || []);
+            }
+            // 左图右文
+            else if (layout === 'image_left_text_right') {
+              addTitle();
+              addSubtitle();
+              addBullets(slots.body_right || []);
+            }
+            // 双栏对比
+            else if (layout === 'comparison') {
+              addTitle();
+              addSubtitle();
+              addBullets(slots.body_left || [], slots.left_label);
+              addBullets(slots.body_right || [], slots.right_label);
+            }
+            // 三列
+            else if (layout === 'three_columns') {
+              addTitle();
+              addSubtitle();
+              addBullets(slots.col1 || [], slots.col1_title);
+              addBullets(slots.col2 || [], slots.col2_title);
+              addBullets(slots.col3 || [], slots.col3_title);
+            }
+            // 四宫格
+            else if (layout === 'grid_4') {
+              addTitle();
+              addSubtitle();
+              addBullets(slots.g1 || [], slots.g1_title);
+              addBullets(slots.g2 || [], slots.g2_title);
+              addBullets(slots.g3 || [], slots.g3_title);
+              addBullets(slots.g4 || [], slots.g4_title);
+            }
+            // 数据聚焦
+            else if (layout === 'data_focus') {
+              addTitle();
+              addSubtitle();
+              if (slots.highlight_number) {
+                elements.push({ type: 'text', id: `highlight-${idx}`, left: margin, top: y, width: 1000 - 2*margin, height: 80, rotate: 0,
+                  content: `<p style="font-size:60px;font-weight:800;color:${accent};text-align:center;letter-spacing:2px;">${escapeHtml(slots.highlight_number)}</p>`,
+                  defaultFontName: theme.fontName, defaultColor: accent, textType: 'content' });
+                y += 90;
+              }
+              if (slots.number_label) {
+                elements.push({ type: 'text', id: `numlabel-${idx}`, left: margin, top: y, width: 1000 - 2*margin, height: 30, rotate: 0,
+                  content: `<p style="font-size:${bodyFontSize*0.8}px;color:${text_sub};text-align:center;">${escapeHtml(slots.number_label)}</p>`,
+                  defaultFontName: theme.fontName, defaultColor: text_sub, textType: 'subtitle' });
+                y += 40;
+              }
+              addBullets(slots.body || []);
+            }
+            // 时间轴
+            else if (layout === 'timeline') {
+              addTitle();
+              addSubtitle();
+              const ms = Array.isArray(slots.milestones) ? slots.milestones : [];
+              if (ms.length) {
+                const items = ms.map(m => {
+                  const isCur = m && m.is_current;
+                  const l = (m && m.label) || '';
+                  const t = (m && (m.text || m.event)) || '';
+                  return `<p style="font-size:${bodyFontSize}px;color:${text_main};line-height:${ds.line_height_body||1.6};margin:4px 0;"><span style="color:${isCur?accent:text_sub};font-weight:600;margin-right:12px;">${escapeHtml(l)}</span>${escapeHtml(t)}</p>`;
+                }).join('');
+                elements.push({ type: 'text', id: `timeline-${idx}`, left: margin, top: y, width: 1000 - 2*margin, height: Math.max(150, ms.length*40), rotate: 0,
+                  content: items, defaultFontName: theme.fontName, defaultColor: text_main, textType: 'content' });
+              }
+            }
+            // 纯文字（默认）
+            else {
+              addTitle();
+              addSubtitle();
+              const bl = slots.bullets || extractExactContentFromSlots(layout, slots);
+              if (slots.keywords && slots.keywords.length) {
+                elements.push({ type: 'text', id: `keywords-${idx}`, left: margin, top: y, width: 1000 - 2*margin, height: 30, rotate: 0,
+                  content: `<p style="font-size:${bodyFontSize*0.7}px;color:${theme_color};">🔑 ${escapeHtml(slots.keywords.join(' · '))}</p>`,
+                  defaultFontName: theme.fontName, defaultColor: theme_color, textType: 'subtitle' });
+                y += 30;
+              }
+              addBullets(bl);
+            }
+
+            const background = page.background_url
+              ? { type: 'image', image: { src: page.background_url, size: 'cover' } }
+              : { type: 'solid', color: ds.bg_color || '#F8FAFC' };
+
+            return {
+              id: `slide-${idx}`,
+              elements,
+              background
+            };
+          });
+
+          return {
+            title: outline?.core_subject || aiPPTTopic.value || 'AI生成演示文稿',
+            width: 1000,
+            height: 562.5,
+            theme,
+            slides
+          };
+        }
+
+        function applyPPTistResultToBroadcast(result) {
+          if (!result || !Array.isArray(result.slides) || !result.slides.length) return false;
+
+          const htmlToPlainText = (html = '') => String(html)
+            .replace(/<li[^>]*>/gi, '• ')
+            .replace(/<\/li>/gi, '\n')
+            .replace(/<br\s*\/?>/gi, '\n')
+            .replace(/<\/p>/gi, '\n')
+            .replace(/<[^>]+>/g, ' ')
+            .replace(/&nbsp;/g, ' ')
+            .replace(/&amp;/g, '&')
+            .replace(/\s*\n\s*/g, '\n')
+            .replace(/\n{2,}/g, '\n')
+            .trim();
+
+          const pageData = result.slides.map((slide, index) => {
+            const textElements = (slide?.elements || []).filter(el => el.type === 'text');
+            const titleText = htmlToPlainText(textElements[0]?.content || slide?.name || `第 ${index + 1} 页`).split('\n')[0] || `第 ${index + 1} 页`;
+            const bodyLines = textElements
+              .slice(1)
+              .flatMap(el => htmlToPlainText(el.content || '').split('\n'))
+              .map(line => line.replace(/^•\s*/, '').trim())
+              .filter(Boolean);
+
+            return {
+              page_num: index + 1,
+              page_title: titleText,
+              page_text: bodyLines.join('；'),
+              page_image: (() => {
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                const bgSrc = slide?.background?.type === 'image' ? slide.background.image?.src : '';
+                img.src = bgSrc || '';
+                return img;
+              })(),
+              page_image_url: slide?.background?.type === 'image' ? (slide.background.image?.src || '') : '',
+              layout_style: 'text_only',
+              inline_image_url: null,
+              inline_image_position: null,
+              pptistSlide: slide,
+              body_lines: bodyLines
+            };
+          });
+
+          pptConfig.imported = true;
+          pptConfig.totalPages = pageData.length;
+          pptConfig.pages = pageData;
+          pptConfig.pptId = 'pptist-edited-' + Date.now();
+          pptConfig.pptTitle = result.title || 'PPTist 编辑结果';
+          pptConfig.isLocal = false;
+
+          aiPPTAssembledPages.value = pageData.map((page, idx) => ({
+            page_number: idx + 1,
+            title: page.page_title,
+            subtitle: '',
+            layout_style: 'text_only',
+            slots: {
+              title: page.page_title,
+              subtitle: '',
+              bullets: page.body_lines?.length ? page.body_lines : (page.page_text ? page.page_text.split('；').filter(Boolean) : [])
+            },
+            background_url: page.page_image_url || '',
+            inline_image_url: null,
+            inline_image_position: null,
+            pptistSlide: page.pptistSlide
+          }));
+
+          addLog(`✅ 已加载 PPTist 编辑结果，共 ${pageData.length} 页`, 'success');
+          return true;
+        }
+
+        function openInPPTist() {
+          if (!aiPPTAssembledPages.value.length) {
+            showToast('请先完成 PPT 组装', 'warn');
+            return;
+          }
+
+          showPPTistEditor.value = true;
+          pptistFrameLoaded.value = false;
+          addLog('🎨 已打开专业编辑器嵌入视图', 'info');
+        }
+
+        function onPPTistFrameLoaded() {
+          pptistFrameLoaded.value = true;
+          const iframe = pptistFrame.value;
+          if (!iframe?.contentWindow || !aiPPTAssembledPages.value.length) return;
+          const pptistData = convertToPPTistFormat(aiPPTOutline.value, aiPPTAssembledPages.value);
+          iframe.contentWindow.postMessage({
+            type: 'LOAD_PPT_DATA',
+            data: pptistData
+          }, '*');
+        }
+
         async function exportPPTX() {
+          if (aiPPTExportLoading.value) {
+            showToast('PPTX 正在导出中，请勿重复点击', 'warn');
+            return;
+          }
+          showLoading('正在编排页面内容...');
           aiPPTExportLoading.value = true;
           addLog('📦 正在生成 PPTX 文件...', 'info');
+          const timeoutNotice = setTimeout(() => {
+            showToast('导出时间较长，请稍候，任务仍在继续', 'warn', 5000);
+          }, 15000);
           try {
             const pages = (aiPPTAssembledPages.value || []).map(p => ({
-              ...p,
+              ...normalizePageToSlots(p),
               image_url: p.background_url,
-              image_position: p.inline_image_position
+              image_position: null
             }));
             const resp = await fetchWithTimeout(`${API_BASE_URL}/ppt/export-from-outline`, {
               method: 'POST',
@@ -2705,24 +4020,30 @@
             addLog(`❌ PPTX 导出失败: ${e.message}`, 'error');
             showToast(`导出失败: ${e.message}`, 'error');
           } finally {
+            clearTimeout(timeoutNotice);
             aiPPTExportLoading.value = false;
+            hideLoading();
           }
         }
-
         async function useGeneratedPPTForBroadcast() {
+          showLoading('正在将PPT灌入数字人导播台...');
           addLog('🎬 使用 AI 组装后的 PPT 进行播报...', 'info');
-          if (!aiPPTAssembledPages.value.length) { showToast('请先完成 PPT 组装', 'error'); return; }
+          if (!aiPPTAssembledPages.value.length) {
+            hideLoading();
+            showToast('请先完成 PPT 组装', 'error');
+            return;
+          }
           const pageData = aiPPTAssembledPages.value.map(p => {
             const img = new Image();
             img.crossOrigin = 'anonymous';
             img.src = p.background_url || '';
             return {
+              ...normalizePageToSlots(p),
               page_num: p.page_number,
               page_title: p.title || p.subtitle || '',
-              page_text: [p.title, p.subtitle, ...(p.elements || []).map(el => el.text)].filter(Boolean).join('；'),
+              page_text: [p.title, p.subtitle, ...extractExactContentFromSlots(p.layout_style, p.slots || {})].filter(Boolean).join('；'),
               page_image: img,
               page_image_url: p.background_url || '',
-              elements: p.elements || [],
               layout_style: p.layout_style || 'content',
               inline_image_url: p.inline_image_url || null,
               inline_image_position: p.inline_image_position || null
@@ -2765,7 +4086,18 @@
           } catch (e) {
             addLog(`❌ 播报准备失败: ${e.message}`, 'error');
             showToast(`播报准备失败: ${e.message}`, 'error');
+          } finally {
+            hideLoading();
           }
+        }
+
+        // PPTist 编辑器「确认并使用」→ 同步回翻页节点
+        function confirmPPTistAndBroadcast() {
+          showPPTistEditor.value = false;
+          // 触发 useGeneratedPPTForBroadcast，走 V2 流程到翻页节点
+          useGeneratedPPTForBroadcast().then(() => {
+            addLog('✅ 已在编辑器中精修完成，已同步至播报流程，可生成翻页节点', 'success');
+          });
         }
 
         // 日志工具
@@ -3433,34 +4765,25 @@ ${sentencesList}
               ctx.fillRect(0, 0, canvas.width, canvas.height);
               if (broadcastMode.value === 'horizontal' && pptConfig.imported && pageTurningConfirmed.value) {
                 const currentPageData = pptConfig.pages.find(item => item.page_num === currentPptPage.value);
-                if (currentPageData && currentPageData.page_image && currentPageData.page_image.complete) {
-                  const pptW = 1440;
-                  const pptH = 810;
-                  const startX = 40;
-                  const startY = 40;
-                  ctx.save();
-                  ctx.shadowColor = 'rgba(0,0,0,0.5)';
-                  ctx.shadowBlur = 20;
-                  ctx.shadowOffsetX = 10;
-                  ctx.shadowOffsetY = 10;
-                  ctx.drawImage(currentPageData.page_image, startX, startY, pptW, pptH);
-                  ctx.restore();
-                  const divider = getSlideDividerMetrics(currentPageData, startX, startY, pptW, pptH);
-                  if (divider.show) {
+                if (currentPageData) {
+                  if (!currentPageData.renderCacheCanvas) {
+                    const tempCanvas = document.createElement('canvas');
+                    renderSlideToCanvas(currentPageData, tempCanvas).then(() => {
+                      currentPageData.renderCacheCanvas = tempCanvas;
+                    });
+                  }
+                  if (currentPageData.renderCacheCanvas) {
+                    const pptW = 1440;
+                    const pptH = 810;
+                    const startX = 40;
+                    const startY = 40;
                     ctx.save();
-                    ctx.fillStyle = divider.color;
-                    ctx.fillRect(divider.x, divider.y, divider.w, divider.h);
+                    ctx.shadowColor = 'rgba(0,0,0,0.24)';
+                    ctx.shadowBlur = 20;
+                    ctx.shadowOffsetX = 10;
+                    ctx.shadowOffsetY = 10;
+                    ctx.drawImage(currentPageData.renderCacheCanvas, startX, startY, pptW, pptH);
                     ctx.restore();
-                  }
-                  if (currentPageData.inline_image_url && currentPageData.inline_image_position) {
-                    const pos = normalizeImagePosition(currentPageData.inline_image_position);
-                    const inlineImg = currentPageData.inline_image;
-                    if (inlineImg && inlineImg.complete) {
-                      ctx.drawImage(inlineImg, startX + (pos.x / 100) * pptW, startY + (pos.y / 100) * pptH, (pos.w / 100) * pptW, (pos.h / 100) * pptH);
-                    }
-                  }
-                  if (currentPageData.elements && currentPageData.elements.length > 0) {
-                    currentPageData.elements.forEach(el => drawTextElement(ctx, el, startX, startY, pptW, pptH));
                   }
                 }
               }
@@ -4223,6 +5546,7 @@ ${sentencesList}
           }
           
           aiGenerating.value = true;
+          showLoading('正在理解内容...');
           aiGenerateError.value = '';
           addLog('🤖 正在调用豆包大模型生成播报文本...', 'info');
           
@@ -4233,6 +5557,7 @@ ${sentencesList}
               page_text: page.page_text
             }));
             
+            showLoading('正在编排页面内容...');
             const response = await fetchWithTimeout(`${API_BASE_URL}/ai/generate-broadcast-text`, {
               method: 'POST',
               headers: {
@@ -4266,6 +5591,7 @@ ${sentencesList}
             showToast(error.message, 'error');
           } finally {
             aiGenerating.value = false;
+            hideLoading();
           }
         }
         // ==================== 全屏切换函数 ====================
@@ -4299,7 +5625,15 @@ ${sentencesList}
         onBeforeMount(() => {
           saveProjectModalOpen.value = false;
         });
+        function handleGlobalKeydown(event) {
+          if (!showSlideEditor.value) return;
+          if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
+            event.preventDefault();
+            if (event.shiftKey) redo(); else undo();
+          }
+        }
         onMounted(async () => {
+          document.addEventListener('mouseup', handleTextSelection);
           saveProjectModalOpen.value = false;
           await nextTick(() => {
             saveProjectModalOpen.value = false;
@@ -4314,6 +5648,7 @@ ${sentencesList}
           // 监听滚动，显示/隐藏返回按钮（具名函数以支持清理）
           const handleScroll = () => { showBackToTop.value = window.scrollY > 300; };
           window.addEventListener('scroll', handleScroll);
+          window.addEventListener('keydown', handleGlobalKeydown);
           
           // 监听 PPT 导入状态，自动控制 AI 生成按钮可用性
           watch(() => pptConfig.imported, updateAIGenerateButtonState, { immediate: true });
@@ -4321,6 +5656,21 @@ ${sentencesList}
           
           // 监听播报模式切换
           watch(() => usePPT.value, updateAIGenerateButtonState, { immediate: true });
+          window.addEventListener('message', (event) => {
+            if (event.data?.type === 'PPT_DATA_EXPORTED') {
+              applyPPTistResultToBroadcast(event.data.data);
+              showToast('✅ 已从 PPTist 同步编辑结果', 'success');
+            }
+          });
+          // Bug1修复: 预览弹窗打开时自动渲染 canvas
+          watch([showPptPreview, previewSlidePage], async ([show, page]) => {
+            if (show && page && pptPreviewCanvas.value) {
+              await nextTick();
+              if (pptPreviewCanvas.value) {
+                await renderSlideToCanvas(page, pptPreviewCanvas.value);
+              }
+            }
+          });
           
           const urlParams = new URLSearchParams(window.location.search);
           const code = urlParams.get('code');
@@ -4329,13 +5679,13 @@ ${sentencesList}
             window.history.replaceState({}, document.title, window.location.pathname);
             await importFeishuPpt(code);
           }
+
           await loadCloudProjectList();
         });
         onUnmounted(() => {
           stopBroadcast();
-          if (typeof handleScroll !== 'undefined') {
-            window.removeEventListener('scroll', handleScroll);
-          }
+          document.removeEventListener('mouseup', handleTextSelection);
+          window.removeEventListener('keydown', handleGlobalKeydown);
         });
         // ==================== 返回顶部函数 ====================
         function scrollToTop() {
@@ -4441,23 +5791,30 @@ ${sentencesList}
           deleteCloudProject,
           showBackToTop,
           scrollToTop,
+          globalLoading,
+          showLoading,
+          hideLoading,
           // V3: AI 生成 PPT
           pptSource, aiPPTTopic, aiPPTPageCount, aiPPTImageModel, aiPPTOutline, aiPPTOutlineDesc, aiPPTThemeColor,
           aiPPTSlidesLayout, aiPPTAssembledPages, aiPPTAllImages, showSlideEditor, editingSlideIdx,
           aiPPTSelectedPage, aiPPTBackgrounds, aiPPTOutlineLoading,
           aiPPTBackgroundsLoading, aiPPTExportLoading, allBackgroundsReady,
-          previewSlidePage, pptPreviewCanvas, currentEditingSlide, selectedEditorElementIdx, selectedEditorElement,
+          previewSlidePage, pptPreviewCanvas, currentEditingSlide, selectedSlotSummary, selectedImageSlot,
+          historyStack, historyIndex, canUndo, canRedo, undo, redo,
           getPageTypeLabel, switchToAIGenerate, generatePPTOutline, generatePPTBackgrounds,
           regeneratePage, addBullet, openGeneratedImage, exportPPTX,
           useGeneratedPPTForBroadcast, openSlidePreview, openSlideEditor, closeSlideEditor,
-          regenerateInlineImage, assemblePPT, getThumbnailElementStyle, getEditorElementStyle,
-          getEditorInlineImageStyle, getEditorStageStyle, getThumbnailDividerStyle, getEditorDividerStyle,
-          showSlideDivider, selectEditorElement, selectEditorImage, startDragEditorElement, handleEditorContainerMouseDown,
-          handleSlideDragMove, handleSlideDragEnd, addEditorElement, removeEditorElement, removeEditorImage,
-          moveElementUp, moveElementDown, replaceBackgroundImage, replaceInlineImage, getImagePosition,
+          regenerateInlineImage, regenerateCoverEndingBackground, regeneratePageImage, currentSlideImagePrompt, assemblePPT, getEditorStageStyle, getEditorShellStyle, getThumbnailSummary,
+          getThumbnailDividerStyle, showSlideDivider, ensureSlotArray, ensureTimelineMilestones, updateSlot, updateBullet, updateMilestoneLabel, updateMilestoneText,
+          triggerReplaceImage, triggerPrimaryImageReplace, handleSlotImageFileChange, replaceBackgroundImage,
+          handleLayoutStyleChange, updateThemeColor, isCoverLayout, slotImageUpload,
+          handleBulletKeydown, applyToAll, handleOutlineDragStart, handleOutlineDragOver, handleOutlineDrop,
+          showToolbar, toolbarX, toolbarY, formatText, adjustSelectionFontSize, handleTextSelection, syncEditingPageState,
+          selectImageSlot, getImageStyle, fontStyle, applyFontStyle, resetFontStyle,
+          openInPPTist, confirmPPTistAndBroadcast, convertToPPTistFormat, showPPTistEditor, pptistEditorUrl, pptistFrame, onPPTistFrameLoaded
         };
       }
-    }).mount('#app');
+    }).directive('text-fit', vTextFit).mount('#app');
   </script>
 </body>
 </html>
