@@ -5361,7 +5361,7 @@ ${sentencesList}
           addLog('🎬 开始播报流程', 'success');
           try {
             addLog('正在获取鉴权信息...', 'info');
-            const authResponse = await fetchWithTimeout('https://avatar-roadcast-shakmjgzdi.cn-hangzhou.fcapp.run', {
+            const authResponse = await fetchWithTimeout(`${API_BASE_URL}`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
