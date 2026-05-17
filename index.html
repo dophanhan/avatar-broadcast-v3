@@ -5228,27 +5228,48 @@ ${sentencesList}
           });
         }
         async function initSDK(authData) {
-          // 销毁所有临时 canvas，防止讯飞 SDK 误复用为 WebGL 目标
-          // 1. 隐藏 pptPreviewCanvas
-          previewSlidePage.value = null;
+          // === 彻底清理所有非播报 canvas 和引用，防 WebGL context 冲突 ===
+          
+          // 1. 关闭所有 PPT 预览/编辑 UI 状态
           showPptPreview.value = false;
+          previewSlidePage.value = null;
+          showSlideEditor.value = false;
+          editingSlideIdx.value = null;
+          
+          // 2. 清理业务对象上的 renderCacheCanvas 引用
+          [pptConfig.pages, aiPPTAssembledPages.value].forEach(list => {
+            (list || []).forEach(p => {
+              if (p?.renderCacheCanvas) {
+                try { p.renderCacheCanvas.width = 0; p.renderCacheCanvas.height = 0; } catch(e) {}
+                p.renderCacheCanvas = null;
+              }
+            });
+          });
+          
+          // 3. 销毁 pptPreviewCanvas
           if (pptPreviewCanvas.value) {
-            const ctx = pptPreviewCanvas.value.getContext('2d');
-            if (ctx) ctx.clearRect(0, 0, pptPreviewCanvas.value.width, pptPreviewCanvas.value.height);
+            const pctx = pptPreviewCanvas.value.getContext('2d');
+            if (pctx) pctx.clearRect(0, 0, pptPreviewCanvas.value.width, pptPreviewCanvas.value.height);
             pptPreviewCanvas.value.width = 0;
             pptPreviewCanvas.value.height = 0;
           }
-          // 2. 移除所有动态创建的临时 canvas（html2canvas/renderCacheCanvas 残留）
+          
+          // 4. 移除 DOM 中所有动态临时 canvas
           document.querySelectorAll('canvas').forEach(c => {
             if (c !== compositeCanvas.value && c !== pptPreviewCanvas.value) {
               c.remove();
             }
           });
-          // 3. 重置 compositeCanvas
+          
+          // 5. 重置 compositeCanvas
           if (compositeCanvas.value) {
             compositeCanvas.value.width = canvasSize.width;
             compositeCanvas.value.height = canvasSize.height;
           }
+          
+          // 6. 等 Vue/DOM 稳定
+          await nextTick();
+          await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
           if (sdkInstance) {
             sdkInstance.stop();
@@ -5257,7 +5278,7 @@ ${sentencesList}
           }
           sdkInstance = new window.AVATAR_SDK.AvatarSDK({
             logLevel: 1,
-            useInlinePlayer: true
+            useInlinePlayer: false
           });
           sdkInstance.on('connected', () => {
             addLog('数字人连接成功', 'success');
