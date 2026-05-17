@@ -5363,10 +5363,9 @@ ${sentencesList}
           host.style.cssText = [
             'all: initial',
             'position: fixed', 'left: -99999px', 'top: -99999px',
-            'width: 1080px', 'height: 1920px', 'overflow: hidden',
+            'width: 1px', 'height: 1px',
             'opacity: 0', 'pointer-events: none', 'z-index: -1',
-            'contain: layout style paint size', 'isolation: isolate',
-            'transform: none', 'filter: none', 'perspective: none',
+            'transform: none', 'filter: none',
           ].join(';');
           host.innerHTML = '';
           console.log('digital-human-container isolated:', host.style.cssText);
