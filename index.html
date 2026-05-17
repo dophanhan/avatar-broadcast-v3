@@ -1313,7 +1313,7 @@
   </style>
 </head>
 <body>
-  <div id="digital-human-container" style="width:1px;height:1px;opacity:0;position:fixed;top:-9999px;left:-9999px;z-index:-999;"></div>
+  <div id="digital-human-host" style="width:1px;height:1px;opacity:0;position:fixed;top:-9999px;left:-9999px;z-index:-999;"></div>
   <div id="app">
     <div class="container">
       <!-- 1. 顶部标题栏 -->
@@ -4768,10 +4768,7 @@ ${sentencesList}
                 const currentPageData = pptConfig.pages.find(item => item.page_num === currentPptPage.value);
                 if (currentPageData) {
                   if (!currentPageData.renderCacheCanvas) {
-                    const tempCanvas = document.createElement('canvas');
-                    renderSlideToCanvas(currentPageData, tempCanvas).then(() => {
-                      currentPageData.renderCacheCanvas = tempCanvas;
-                    });
+                    return; // 播报中不动态创建 canvas，避免污染 SDK 环境
                   }
                   if (currentPageData.renderCacheCanvas) {
                     const pptW = 1440;
@@ -5032,7 +5029,7 @@ ${sentencesList}
           
           const startRecordingWhenReady = () => {
             let audioStream = null;
-            const videoEl = document.querySelector('#digital-human-container video');
+            const videoEl = document.querySelector('#digital-human-host video');
             const allAudios = document.querySelectorAll('audio');
             if (videoEl && videoEl.readyState >= 3 && !videoEl.muted) {
               try {
@@ -5216,7 +5213,7 @@ ${sentencesList}
                 resolve();
                 return;
               }
-              const videoEl = document.querySelector('#digital-human-container video');
+              const videoEl = document.querySelector('#digital-human-host video');
               if (videoEl && videoEl.readyState >= 2 && videoEl.videoWidth > 0) {
                 addLog(`Video 元素就绪 (${videoEl.videoWidth}x${videoEl.videoHeight})`, 'success');
                 resolve();
@@ -5254,14 +5251,7 @@ ${sentencesList}
             pptPreviewCanvas.value.height = 0;
           }
           
-          // 4. 移除 DOM 中所有动态临时 canvas
-          document.querySelectorAll('canvas').forEach(c => {
-            if (c !== compositeCanvas.value && c !== pptPreviewCanvas.value) {
-              c.remove();
-            }
-          });
-          
-          // 5. 重置 compositeCanvas
+          // 4. 重置 compositeCanvas
           if (compositeCanvas.value) {
             compositeCanvas.value.width = canvasSize.width;
             compositeCanvas.value.height = canvasSize.height;
@@ -5358,14 +5348,20 @@ ${sentencesList}
               add_nonsemantic: 1
             }
           });
-          await sdkInstance.start({
-            wrapper: document.getElementById('digital-human-container')
-          });
+          
+          // 每次重建独立 wrapper，避免旧 canvas 残留导致 WebGL context 冲突
+          const host = document.getElementById('digital-human-host');
+          if (host) host.innerHTML = '';
+          const sdkWrapper = document.createElement('div');
+          sdkWrapper.style.cssText = 'width:1px;height:1px;opacity:0;position:fixed;top:-9999px;left:-9999px;z-index:-999';
+          if (host) host.appendChild(sdkWrapper);
+          
+          await sdkInstance.start({ wrapper: sdkWrapper || host });
           await waitForVideoElement();
-          avatarSourceDom = document.querySelector('#digital-human-container canvas') ||
-                            document.querySelector('#digital-human-container video');
+          const lookupEl = sdkWrapper || host;
+          avatarSourceDom = lookupEl.querySelector('canvas') || lookupEl.querySelector('video');
           addLog(`✅ 数字人 DOM 已缓存:${avatarSourceDom?.tagName || '未找到'}`, 'success');
-          const videoEl = document.querySelector('#digital-human-container video');
+          const videoEl = lookupEl.querySelector('video');
           if (videoEl) {
             videoEl.muted = false;
             videoEl.volume = 1.0;
@@ -5423,6 +5419,18 @@ ${sentencesList}
               throw new Error(authData.msg || '鉴权失败');
             }
             addLog('鉴权信息获取成功', 'success');
+            // 播报前预构建所有 PPT 背景缓存，避免播报中动态 html2canvas
+            if (broadcastMode.value === 'horizontal' && pptConfig.imported && pageTurningConfirmed.value) {
+              addLog('正在预生成 PPT 背景缓存...', 'info');
+              for (const pg of pptConfig.pages || []) {
+                if (!pg.renderCacheCanvas) {
+                  const tc = document.createElement('canvas');
+                  await renderSlideToCanvas(pg, tc);
+                  pg.renderCacheCanvas = tc;
+                }
+              }
+              addLog('PPT 背景缓存完成', 'success');
+            }
             await initSDK(authData.data);
             const sentences = splitSentences(config.text);
             totalSentences.value = sentences.length;
