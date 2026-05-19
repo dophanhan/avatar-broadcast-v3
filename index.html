@@ -3957,15 +3957,7 @@
 
         function onPPTistFrameLoaded() {
           pptistFrameLoaded.value = true;
-          const iframe = pptistFrame.value;
-          if (!iframe?.contentWindow || !aiPPTAssembledPages.value.length) return;
-          const pptistData = convertToPPTistFormat(aiPPTOutline.value, aiPPTAssembledPages.value);
-          // 延迟发送，确保 iframe 内 Vue 应用已 mount 并注册了 message 监听器
-          const sendData = () => {
-            iframe.contentWindow.postMessage({ type: 'LOAD_PPT_DATA', data: pptistData }, '*');
-          };
-          setTimeout(sendData, 500);
-          setTimeout(sendData, 1500);
+          // 不在此处发送数据，等待 PPTist 通过 PPTIST_READY 消息通知已就绪
         }
 
         async function exportPPTX() {
@@ -5635,6 +5627,14 @@ ${sentencesList}
             if (event.data?.type === 'PPT_DATA_EXPORTED') {
               applyPPTistResultToBroadcast(event.data.data);
               showToast('✅ 已从 PPTist 同步编辑结果', 'success');
+            }
+            if (event.data?.type === 'PPTIST_READY') {
+              const iframe = pptistFrame.value;
+              if (!iframe?.contentWindow || event.source !== iframe.contentWindow) return;
+              if (!aiPPTAssembledPages.value.length) return;
+              const pptistData = convertToPPTistFormat(aiPPTOutline.value, aiPPTAssembledPages.value);
+              iframe.contentWindow.postMessage({ type: 'LOAD_PPT_DATA', data: pptistData }, '*');
+              addLog('✅ PPTist 编辑器就绪，已发送 PPT 数据', 'success');
             }
           });
           // Bug1修复: 预览弹窗打开时自动渲染 canvas
