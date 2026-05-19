@@ -3960,10 +3960,12 @@
           const iframe = pptistFrame.value;
           if (!iframe?.contentWindow || !aiPPTAssembledPages.value.length) return;
           const pptistData = convertToPPTistFormat(aiPPTOutline.value, aiPPTAssembledPages.value);
-          iframe.contentWindow.postMessage({
-            type: 'LOAD_PPT_DATA',
-            data: pptistData
-          }, '*');
+          // 延迟发送，确保 iframe 内 Vue 应用已 mount 并注册了 message 监听器
+          const sendData = () => {
+            iframe.contentWindow.postMessage({ type: 'LOAD_PPT_DATA', data: pptistData }, '*');
+          };
+          setTimeout(sendData, 500);
+          setTimeout(sendData, 1500);
         }
 
         async function exportPPTX() {
