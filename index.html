@@ -3757,7 +3757,7 @@
                 const h = Math.max(150, list.length * bodyFontSize * 2);
                 let html = '';
                 if (label) html += `<p style="font-size:${bodyFontSize*0.7}px;color:${theme_color};font-weight:600;margin-bottom:4px;">${escapeHtml(label)}</p>`;
-                html += items.map(t => `<p style="font-size:${bodyFontSize}px;color:${text_main};line-height:${ds.line_height_body||1.6};margin:2px 0;">• ${escapeHtml(t)}</p>`).join('');
+                html += list.map(t => `<p style="font-size:${bodyFontSize}px;color:${text_main};line-height:${ds.line_height_body||1.6};margin:2px 0;">• ${escapeHtml(t)}</p>`).join('');
                 elements.push({ type: 'text', id: `bullets-${idx}`, left: margin, top: y, width: 1000 - 2*margin, height: h, rotate: 0,
                   content: html, defaultFontName: theme.fontName, defaultColor: text_main, textType: 'content' });
                 y += h + 10;
