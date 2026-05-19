@@ -783,96 +783,54 @@
       gap: 12px;
     }
     /* Global style presets - exposed as CSS variables */
-    .global-style-tech_blue {
-      --gs-primary: #165DFF;
-      --gs-secondary: #36CFC9;
-      --gs-bg: #F8FAFC;
-      --gs-card: #FFFFFF;
-      --gs-text-main: #1E293B;
-      --gs-text-sub: #64748B;
-      --gs-border: #E2E8F0;
-      --gs-title-size: 2.6vw;
-      --gs-body-size: 1.1vw;
-      --gs-cover-bg: linear-gradient(135deg, #0F172A 0%, #1E40AF 100%);
-      font-family: Inter,Microsoft YaHei,PingFang SC,sans-serif;
+    /* 8-Style Preset System from awesome-design-md */
+    .global-style-ibm_carbon {
+      --gs-primary: #0f62fe; --gs-secondary: #525252; --gs-bg: #ffffff;
+      --gs-card: #f4f4f4; --gs-text-main: #161616; --gs-text-sub: #525252;
+      --gs-border: #e0e0e0; --gs-title-size: 2.5vw; --gs-body-size: 1.1vw;
+      --gs-cover-bg: #161616; font-family: Microsoft YaHei,sans-serif;
     }
-    .global-style-business_minimal {
-      --gs-primary: #0F172A;
-      --gs-secondary: #3B82F6;
-      --gs-bg: #FFFFFF;
-      --gs-card: #F8FAFC;
-      --gs-text-main: #0F172A;
-      --gs-text-sub: #475569;
-      --gs-border: #E2E8F0;
-      --gs-title-size: 2.5vw;
-      --gs-body-size: 1.1vw;
-      --gs-cover-bg: linear-gradient(135deg, #F1F5F9 0%, #E2E8F0 100%);
-      font-family: Inter,Microsoft YaHei,PingFang SC,sans-serif;
+    .global-style-apple_keynote {
+      --gs-primary: #0066cc; --gs-secondary: #7a7a7a; --gs-bg: #f5f5f7;
+      --gs-card: #ffffff; --gs-text-main: #1d1d1f; --gs-text-sub: #7a7a7a;
+      --gs-border: #e0e0e0; --gs-title-size: 2.8vw; --gs-body-size: 1.1vw;
+      --gs-cover-bg: #f5f5f7; font-family: PingFang SC,sans-serif;
     }
-    .global-style-formal_official {
-      --gs-primary: #C8102E;
-      --gs-secondary: #003366;
-      --gs-bg: #FFFFFF;
-      --gs-card: #F5F7FA;
-      --gs-text-main: #1A1A1A;
-      --gs-text-sub: #4D4D4D;
-      --gs-border: #D9D9D9;
-      --gs-title-size: 2.8vw;
-      --gs-body-size: 1.2vw;
-      --gs-cover-bg: linear-gradient(135deg, #FEF2F2 0%, #F1F5F9 100%);
-      font-family: SimHei,SimSun,serif;
+    .global-style-claude_warm {
+      --gs-primary: #cc785c; --gs-secondary: #6c6a64; --gs-bg: #faf9f5;
+      --gs-card: #efe9de; --gs-text-main: #141413; --gs-text-sub: #6c6a64;
+      --gs-border: #e6dfd8; --gs-title-size: 2.6vw; --gs-body-size: 1.1vw;
+      --gs-cover-bg: #faf9f5; font-family: SimSun,Microsoft YaHei,serif;
     }
-    .global-style-fresh_light {
-      --gs-primary: #10B981;
-      --gs-secondary: #F59E0B;
-      --gs-bg: #F0FDF4;
-      --gs-card: #FFFFFF;
-      --gs-text-main: #1F2937;
-      --gs-text-sub: #6B7280;
-      --gs-border: #D1FAE5;
-      --gs-title-size: 2.6vw;
-      --gs-body-size: 1.1vw;
-      --gs-cover-bg: linear-gradient(135deg, #ECFDF5 0%, #F0FDF4 100%);
-      font-family: Inter,Microsoft YaHei,PingFang SC,sans-serif;
+    .global-style-linear_dark {
+      --gs-primary: #5e6ad2; --gs-secondary: #d0d6e0; --gs-bg: #010102;
+      --gs-card: #0f1011; --gs-text-main: #f7f8f8; --gs-text-sub: #d0d6e0;
+      --gs-border: #23252a; --gs-title-size: 2.7vw; --gs-body-size: 1.0vw;
+      --gs-cover-bg: #010102; font-family: Microsoft YaHei,sans-serif;
     }
-    .global-style-dark_elegant {
-      --gs-primary: #FBBF24;
-      --gs-secondary: #94A3B8;
-      --gs-bg: #0A0A0A;
-      --gs-card: #171717;
-      --gs-text-main: #F5F5F5;
-      --gs-text-sub: #A3A3A3;
-      --gs-border: #262626;
-      --gs-title-size: 2.9vw;
-      --gs-body-size: 1.2vw;
-      --gs-cover-bg: linear-gradient(135deg, #020617 0%, #1E293B 100%);
-      font-family: Inter,Microsoft YaHei,PingFang SC,sans-serif;
+    .global-style-notion_playful {
+      --gs-primary: #5645d4; --gs-secondary: #5d5b54; --gs-bg: #ffffff;
+      --gs-card: #f6f5f4; --gs-text-main: #1a1a1a; --gs-text-sub: #5d5b54;
+      --gs-border: #e5e3df; --gs-title-size: 2.6vw; --gs-body-size: 1.1vw;
+      --gs-cover-bg: #ffffff; font-family: Microsoft YaHei,sans-serif;
     }
-    .global-style-campus_vibrant {
-      --gs-primary: #8B5CF6;
-      --gs-secondary: #6B7280;
-      --gs-bg: #FAF5FF;
-      --gs-card: #FFFFFF;
-      --gs-text-main: #1F2937;
-      --gs-text-sub: #6B7280;
-      --gs-border: #E9D5FF;
-      --gs-title-size: 2.8vw;
-      --gs-body-size: 1.2vw;
-      --gs-cover-bg: linear-gradient(135deg, #EDE9FE 0%, #FCE7F3 100%);
-      font-family: Inter,Microsoft YaHei,PingFang SC,sans-serif;
+    .global-style-coinbase_finance {
+      --gs-primary: #0052ff; --gs-secondary: #5b616e; --gs-bg: #ffffff;
+      --gs-card: #ffffff; --gs-text-main: #0a0b0d; --gs-text-sub: #5b616e;
+      --gs-border: #dee1e6; --gs-title-size: 2.5vw; --gs-body-size: 1.0vw;
+      --gs-cover-bg: #0a0b0d; font-family: Microsoft YaHei,sans-serif;
     }
-    .global-style-oriental_classic {
-      --gs-primary: #8B4513;
-      --gs-secondary: #6B4423;
-      --gs-bg: #FDF6E3;
-      --gs-card: #FFFAF0;
-      --gs-text-main: #2C1810;
-      --gs-text-sub: #6B4423;
-      --gs-border: #E6D5B8;
-      --gs-title-size: 2.9vw;
-      --gs-body-size: 1.2vw;
-      --gs-cover-bg: linear-gradient(135deg, #FDF6E3 0%, #F5E6C8 100%);
-      font-family: SimSun,KaiTi,serif;
+    .global-style-nike_kinetic {
+      --gs-primary: #111111; --gs-secondary: #707072; --gs-bg: #ffffff;
+      --gs-card: #f5f5f5; --gs-text-main: #111111; --gs-text-sub: #707072;
+      --gs-border: #cacacb; --gs-title-size: 3.0vw; --gs-body-size: 1.2vw;
+      --gs-cover-bg: #000000; font-family: Microsoft YaHei,sans-serif;
+    }
+    .global-style-mistral_atmosphere {
+      --gs-primary: #fa520f; --gs-secondary: #4a4a4a; --gs-bg: #fff8e0;
+      --gs-card: #ffffff; --gs-text-main: #1f1f1f; --gs-text-sub: #4a4a4a;
+      --gs-border: #e5e5e5; --gs-title-size: 2.6vw; --gs-body-size: 1.1vw;
+      --gs-cover-bg: #fff8e0; font-family: Microsoft YaHei,sans-serif;
     }
     .editor-bg-layer {
       position: absolute;
@@ -1870,7 +1828,7 @@
             <div style="font-size:14px; font-weight:700; color:#0f172a;">🎨 第{{ currentEditingSlide?.page_number || '-' }}页可视化编辑</div>
             <div class="editor-canvas-stage"
               ref="slideEditorStage"
-              :class="'global-style-' + (currentEditingSlide?.design_spec?.overall_style || 'tech_blue')"
+              :class="'global-style-' + (currentEditingSlide?.design_spec?.style_id || 'ibm_carbon')"
               :style="getEditorStageStyle()">
               <div v-if="currentEditingSlide?.background_url" class="editor-bg-layer" :class="currentEditingSlide.layout_style" :style="{ backgroundImage: `url(${currentEditingSlide.background_url})` }"></div>
               <div class="editor-layout-shell" :style="getEditorShellStyle(currentEditingSlide)">
@@ -3592,7 +3550,7 @@
           if (layout !== 'cover' && layout !== 'ending') return;
           const outline = aiPPTOutline.value || {};
           const ds = outline.design_spec || {};
-          const imageStyle = ds.overall_style || 'tech_blue';
+          const imageStyle = ds.style_id || 'ibm_carbon';
           const prompt = (layout === 'cover' ? outline.cover_prompt : outline.ending_prompt) ||
             `presentation ${layout} background, ${imageStyle} style, premium quality, 16:9, no text --no watermark, text`;
           addLog(`🎨 正在重新生成${layout === 'cover' ? '封面' : '尾页'}背景...`, 'info');
