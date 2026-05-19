@@ -3754,7 +3754,7 @@
               // normalize: 字符串包成数组，数组保持，非数组/非字符串跳过
               const list = Array.isArray(items) ? items : (typeof items === 'string' && items ? [items] : []);
               if (list.length) {
-                const h = Math.max(150, items.length * bodyFontSize * 2);
+                const h = Math.max(150, list.length * bodyFontSize * 2);
                 let html = '';
                 if (label) html += `<p style="font-size:${bodyFontSize*0.7}px;color:${theme_color};font-weight:600;margin-bottom:4px;">${escapeHtml(label)}</p>`;
                 html += items.map(t => `<p style="font-size:${bodyFontSize}px;color:${text_main};line-height:${ds.line_height_body||1.6};margin:2px 0;">• ${escapeHtml(t)}</p>`).join('');
