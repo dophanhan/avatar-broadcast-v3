@@ -2572,7 +2572,7 @@
         const editingSlideIdx = ref(null);    // 正在编辑的页面索引
         const aiPPTThemeColor = ref('#1e3a8a');  // 后端返回的 theme_color
         const showPPTistEditor = ref(false);
-        const PPTIST_EDITOR_URL = 'https://7ae3b6e0.avatar-broadcast-v3.pages.dev/editor/';
+        const PPTIST_EDITOR_URL = 'https://master.avatar-broadcast-v3.pages.dev/editor/';
         const pptistEditorUrl = ref(PPTIST_EDITOR_URL);
         const pptistFrame = ref(null);
         const pptistFrameLoaded = ref(false);
@@ -3698,169 +3698,314 @@
             .join('') + '</ul>';
         }
 
+        // ========== PPTist 动态渲染模板库 v2.0 ==========
+        // 全局画布参数
+        const CANVAS_WIDTH = 1000;
+        const CANVAS_HEIGHT = 562.5;
+        const TEMPLATE_MARGIN = 60;
+        const GUTTER_X = 20;
+        const GUTTER_Y = 20;
+        const KPI_GAP = 15;
+        const DEFAULT_LINE_HEIGHT = 1.4;
+
+        // 风格预设（8 种）
+        const PPT_STYLE_PRESETS = {
+          ibm_carbon: { id:'ibm_carbon', name:'IBM Carbon', primary:'#0f62fe', ink:'#161616', ink_secondary:'#525252', ink_muted:'#8d8d8d', canvas:'#ffffff', surface_card:'#f4f4f4', surface_dark:'#161616', cornerRadius:0.05, titleWeight:'bold', fontFamily:'Microsoft YaHei', coverIsDark:true },
+          apple_keynote: { id:'apple_keynote', name:'Apple Keynote', primary:'#0066cc', ink:'#1d1d1f', ink_secondary:'#7a7a7a', ink_muted:'#a0a0a0', canvas:'#f5f5f7', surface_card:'#ffffff', surface_dark:'#1d1d1f', cornerRadius:0.06, titleWeight:'800', fontFamily:'PingFang SC', coverIsDark:false },
+          claude_warm: { id:'claude_warm', name:'Claude Warm', primary:'#cc785c', ink:'#141413', ink_secondary:'#6c6a64', ink_muted:'#9a9790', canvas:'#faf9f5', surface_card:'#efe9de', surface_dark:'#141413', cornerRadius:0.04, titleWeight:'bold', fontFamily:'SimSun,Microsoft YaHei', coverIsDark:false },
+          linear_dark: { id:'linear_dark', name:'Linear Dark', primary:'#5e6ad2', ink:'#f7f8f8', ink_secondary:'#d0d6e0', ink_muted:'#8c8c8c', canvas:'#010102', surface_card:'#0f1011', surface_dark:'#010102', cornerRadius:0.05, titleWeight:'bold', fontFamily:'Microsoft YaHei', coverIsDark:true },
+          notion_playful: { id:'notion_playful', name:'Notion Playful', primary:'#5645d4', ink:'#1a1a1a', ink_secondary:'#5d5b54', ink_muted:'#9b9990', canvas:'#ffffff', surface_card:'#f6f5f4', surface_dark:'#1a1a1a', cornerRadius:0.04, titleWeight:'700', fontFamily:'Microsoft YaHei', coverIsDark:false },
+          coinbase_finance: { id:'coinbase_finance', name:'Coinbase Finance', primary:'#0052ff', ink:'#0a0b0d', ink_secondary:'#5b616e', ink_muted:'#8c8c8c', canvas:'#ffffff', surface_card:'#ffffff', surface_dark:'#0a0b0d', cornerRadius:0.03, titleWeight:'bold', fontFamily:'Microsoft YaHei', coverIsDark:true },
+          nike_kinetic: { id:'nike_kinetic', name:'Nike Kinetic', primary:'#111111', ink:'#111111', ink_secondary:'#707072', ink_muted:'#aaa', canvas:'#ffffff', surface_card:'#f5f5f5', surface_dark:'#000000', cornerRadius:0.03, titleWeight:'900', fontFamily:'Microsoft YaHei', coverIsDark:true },
+          mistral_atmosphere: { id:'mistral_atmosphere', name:'Mistral Atmosphere', primary:'#fa520f', ink:'#1f1f1f', ink_secondary:'#4a4a4a', ink_muted:'#8a8a8a', canvas:'#fff8e0', surface_card:'#ffffff', surface_dark:'#1f1f1f', cornerRadius:0.05, titleWeight:'bold', fontFamily:'Microsoft YaHei', coverIsDark:false }
+        };
+
+        // 百分比布局
+        function percentX(p){ return CANVAS_WIDTH*p; }
+        function percentY(p){ return CANVAS_HEIGHT*p; }
+
+        // 元素工厂函数
+        let _elementSeq = 0;
+        function _genId(slideType, elementType) {
+          _elementSeq += 1;
+          return `${slideType}_${elementType}_${_elementSeq}`;
+        }
+        function _textElement({slideType, x, y, width, height, content, fontName='Microsoft YaHei', fontSize=16, fontWeight='normal', color='#161616', align='left', lineHeight=DEFAULT_LINE_HEIGHT, inset=[5,5,5,5]}) {
+          return { type:'text', id:_genId(slideType,'text'), left:x, top:y, width, height, content, defaultFontName:fontName, defaultColor:color, lineHeight, wordSpace:0, paragraphSpace:5, inset };
+        }
+        function _shapeElement({slideType, x, y, width, height, fill='#f4f4f4', pathFormula='roundRect', keypoints=[0.05], outline=null, text=null, opacity=null}) {
+          const el = { type:'shape', id:_genId(slideType,'shape'), left:x, top:y, width, height, viewBox:[200,200], pathFormula, keypoints, fill, outline, fixedRatio:false, text };
+          if (opacity != null) el.opacity = opacity;
+          return el;
+        }
+        function _lineElement({slideType, start, end, color='#0f62fe', style='solid'}) {
+          return { type:'line', id:_genId(slideType,'line'), start, end, style, color, points:['',''] };
+        }
+
+        // HTML 模板
+        function _textHtml(content, size, weight='normal', color='#161616') {
+          return `<p style="text-align:left;"><span style="font-size:${size}px;font-weight:${weight};color:${color};">${content}</span></p>`;
+        }
+        function _kpiLabelHtml(content, color, size, weight='normal') {
+          return `<p style="text-align:left;"><span style="font-size:${size}px;font-weight:${weight};color:${color};">${content}</span></p>`;
+        }
+        function _bulletHtml(items, size, color) {
+          return `<ul>${items.map(function(s){ return `<li style="font-size:${size}px;color:${color};margin-bottom:8px;">${s}</li>`; }).join('')}</ul>`;
+        }
+
+        // deriveColors
+        function deriveColors(style, mode) {
+          mode = mode || 'light';
+          if (mode === 'dark') return { bg:style.surface_dark, title:'#ffffff', subtitle:style.ink_muted||'#8c8c8c', accent:style.primary, card:style.surface_card, text:'#f7f8f8', textSec:style.ink_secondary };
+          return { bg:style.canvas, title:style.ink, subtitle:style.ink_secondary, accent:style.primary, card:style.surface_card, text:style.ink, textSec:style.ink_secondary };
+        }
+
+        // ========== 动态布局渲染函数 ==========
+        function renderCover(slideType, title, subtitle, style, mode) {
+          mode = mode || 'light';
+          var colors = deriveColors(style, mode);
+          var topBandHeight = percentY(0.5);
+          var bottomBandHeight = percentY(0.11);
+          return [
+            _shapeElement({slideType:slideType, x:0, y:0, width:CANVAS_WIDTH, height:topBandHeight, fill:colors.bg}),
+            _textElement({slideType:slideType, x:TEMPLATE_MARGIN, y:percentY(0.12), width:CANVAS_WIDTH-2*TEMPLATE_MARGIN, height:130, content:_textHtml(title||'',44,style.titleWeight||'bold',colors.title), align:'center', lineHeight:1.2}),
+            _lineElement({slideType:slideType, start:[percentX(0.425),percentY(0.37)], end:[percentX(0.575),percentY(0.37)], color:style.primary}),
+            _textElement({slideType:slideType, x:TEMPLATE_MARGIN*2, y:percentY(0.43), width:CANVAS_WIDTH-4*TEMPLATE_MARGIN, height:60, content:_textHtml(subtitle||'',20,'normal',colors.subtitle), align:'center'}),
+            _shapeElement({slideType:slideType, x:0, y:CANVAS_HEIGHT-bottomBandHeight, width:CANVAS_WIDTH, height:bottomBandHeight, fill:style.primary, opacity:0.12})
+          ];
+        }
+
+        function renderEnding(slideType, title, subtitle, style) {
+          var bottomBandHeight = percentY(0.11);
+          return [
+            _lineElement({slideType:slideType, start:[percentX(0.4),percentY(0.41)], end:[percentX(0.6),percentY(0.41)], color:style.primary}),
+            _textElement({slideType:slideType, x:TEMPLATE_MARGIN, y:percentY(0.23), width:CANVAS_WIDTH-2*TEMPLATE_MARGIN, height:90, content:_textHtml(title||'',40,'normal',style.ink)}),
+            _textElement({slideType:slideType, x:TEMPLATE_MARGIN*2, y:percentY(0.48), width:CANVAS_WIDTH-4*TEMPLATE_MARGIN, height:80, content:_textHtml(subtitle||'',18,'normal',style.ink_secondary)}),
+            _shapeElement({slideType:slideType, x:0, y:CANVAS_HEIGHT-bottomBandHeight, width:CANVAS_WIDTH, height:bottomBandHeight, fill:style.primary, opacity:0.12})
+          ];
+        }
+
+        function renderTextOnly(slideType, title, subtitle, bullets, style) {
+          var elements = [];
+          var y = percentY(0.1);
+          if (title) {
+            elements.push(_textElement({slideType:slideType, x:TEMPLATE_MARGIN, y:y, width:CANVAS_WIDTH-2*TEMPLATE_MARGIN, height:50, content:_textHtml(title,30,style.titleWeight||'bold',style.ink), lineHeight:1.2}));
+            y += 55;
+          }
+          if (subtitle) {
+            elements.push(_textElement({slideType:slideType, x:TEMPLATE_MARGIN, y:y, width:CANVAS_WIDTH-2*TEMPLATE_MARGIN, height:28, content:_textHtml(subtitle,16,'normal',style.ink_secondary)}));
+            y += 35;
+          }
+          if (bullets && bullets.length) {
+            elements.push(_textElement({slideType:slideType, x:TEMPLATE_MARGIN, y:y, width:CANVAS_WIDTH-2*TEMPLATE_MARGIN, height:Math.max(200, bullets.length*30), content:_bulletHtml(bullets,16,style.ink), lineHeight:1.5}));
+          }
+          return elements;
+        }
+
+        function renderThreeColumns(slideType, columns, style) {
+          var colCount = columns.length;
+          var colWidth = (CANVAS_WIDTH-2*TEMPLATE_MARGIN-(colCount-1)*GUTTER_X)/colCount;
+          var colHeight = 350;
+          var startY = percentY(0.25);
+          return columns.flatMap(function(col, i) {
+            var x = TEMPLATE_MARGIN + i*(colWidth+GUTTER_X);
+            return [
+              _shapeElement({slideType:slideType, x:x, y:startY, width:colWidth, height:colHeight, fill:style.surface_card}),
+              _shapeElement({slideType:slideType, x:x, y:startY, width:colWidth, height:48, fill:style.primary, keypoints:[0.05]}),
+              _textElement({slideType:slideType, x:x+10, y:startY+5, width:colWidth-20, height:40, content:_textHtml(col.title||'',18,'bold','#ffffff'), align:'center'}),
+              _textElement({slideType:slideType, x:x+10, y:startY+55, width:colWidth-20, height:colHeight-60, content:_bulletHtml(col.items||[],14,style.ink)})
+            ];
+          });
+        }
+
+        function renderGrid4(slideType, gridData, style) {
+          var gridWidth = (CANVAS_WIDTH-2*TEMPLATE_MARGIN-GUTTER_X)/2;
+          var gridHeight = 195;
+          var positions = [
+            {x:TEMPLATE_MARGIN, y:percentY(0.27)},
+            {x:TEMPLATE_MARGIN+gridWidth+GUTTER_X, y:percentY(0.27)},
+            {x:TEMPLATE_MARGIN, y:percentY(0.62)},
+            {x:TEMPLATE_MARGIN+gridWidth+GUTTER_X, y:percentY(0.62)}
+          ];
+          return positions.map(function(pos, i) {
+            var data = gridData[i] || {};
+            return [
+              _shapeElement({slideType:slideType, x:pos.x, y:pos.y, width:gridWidth, height:gridHeight, fill:style.surface_card}),
+              _shapeElement({slideType:slideType, x:pos.x, y:pos.y, width:4, height:gridHeight, fill:style.primary}),
+              _textElement({slideType:slideType, x:pos.x+25, y:pos.y+15, width:gridWidth-50, height:35, content:_textHtml(data.title||'',18,'bold',style.primary)}),
+              _textElement({slideType:slideType, x:pos.x+25, y:pos.y+55, width:gridWidth-50, height:gridHeight-70, content:_textHtml(data.value||'',15,'normal',style.ink)})
+            ];
+          }).flat();
+        }
+
+        function renderDataFocus(slideType, kpi, description, imageUrl, style) {
+          var startY = percentY(0.26);
+          var el = [
+            _shapeElement({slideType:slideType, x:TEMPLATE_MARGIN, y:startY, width:CANVAS_WIDTH-2*TEMPLATE_MARGIN, height:130, fill:style.surface_card}),
+            _textElement({slideType:slideType, x:TEMPLATE_MARGIN, y:startY+9, width:CANVAS_WIDTH-2*TEMPLATE_MARGIN, height:35, content:_textHtml((kpi&&kpi.label)||'',15,'normal',style.ink_secondary), align:'center'}),
+            _textElement({slideType:slideType, x:TEMPLATE_MARGIN, y:startY+40, width:CANVAS_WIDTH-2*TEMPLATE_MARGIN, height:75, content:_textHtml((kpi&&kpi.value)||'',52,'bold',style.primary), align:'center'}),
+            _textElement({slideType:slideType, x:TEMPLATE_MARGIN+10, y:startY+130, width:CANVAS_WIDTH-2*TEMPLATE_MARGIN-20, height:60, content:_bulletHtml(description||[],15,style.ink)})
+          ];
+          if (imageUrl) {
+            el.push({ type:'image', id:_genId(slideType,'image'), left:75, top:startY+230, width:CANVAS_WIDTH-150, height:160, src:imageUrl, fixedRatio:false, radius:4 });
+          }
+          return el;
+        }
+
+        function renderTimeline(slideType, milestones, style) {
+          var lineX = percentX(0.2);
+          var startY = percentY(0.3);
+          var endY = percentY(0.85);
+          var spacing = milestones.length > 1 ? (endY-startY)/(milestones.length-1) : 50;
+          var elements = [_lineElement({slideType:slideType, start:[lineX,startY-10], end:[lineX,endY+10], color:'#e0e0e0', style:'dashed'})];
+          milestones.forEach(function(m, i) {
+            var nodeY = startY + i*spacing;
+            var isCur = m&&m.is_current;
+            elements.push(
+              _shapeElement({slideType:slideType, x:lineX-9, y:nodeY-9, width:18, height:18, pathFormula:'roundRect', fill:isCur?style.primary:'#e0e0e0', outline:isCur?{style:'solid',width:2,color:style.primary}:null}),
+              _textElement({slideType:slideType, x:22.5, y:nodeY-15, width:150, height:30, content:_textHtml((m&&m.label)||'',14,'bold',isCur?style.primary:'#525252'), align:'right'}),
+              _textElement({slideType:slideType, x:lineX+30, y:nodeY-12, width:700, height:40, content:_textHtml((m&&(m.text||m.event))||'',15,isCur?'bold':'normal',style.ink)})
+            );
+          });
+          return elements;
+        }
+
+        function renderTextLeftChartRight(slideType, title, subtitle, bullets, imageUrl, style) {
+          var leftX = TEMPLATE_MARGIN, leftW = 440;
+          var rightX = leftX+leftW+GUTTER_X, rightW = CANVAS_WIDTH-leftW-2*TEMPLATE_MARGIN-GUTTER_X;
+          var el = [
+            _textElement({slideType:slideType, x:leftX, y:percentY(0.07), width:leftW, height:50, content:_textHtml(title||'',30,'normal',style.ink)}),
+            _textElement({slideType:slideType, x:leftX, y:percentY(0.17), width:leftW, height:28, content:_textHtml(subtitle||'',16,'normal',style.ink_secondary)}),
+            _lineElement({slideType:slideType, start:[leftX, percentY(0.237)], end:[leftX+125, percentY(0.237)], color:style.primary}),
+            _textElement({slideType:slideType, x:leftX+7.5, y:percentY(0.27), width:leftW-15, height:345, content:_bulletHtml(bullets||[],15,style.ink), lineHeight:1.3})
+          ];
+          if (imageUrl) {
+            el.push({ type:'image', id:_genId(slideType,'image'), left:rightX, top:percentY(0.16), width:rightW, height:345, src:imageUrl, fixedRatio:false, radius:4 });
+          }
+          return el;
+        }
+
+        function renderImageLeftTextRight(slideType, title, subtitle, bullets, imageUrl, style) {
+          return renderTextLeftChartRight(slideType, title, subtitle, bullets, imageUrl, style).map(function(el) {
+            if (el.type==='text' && el.left >= percentX(0.44)) el = Object.assign({}, el, {left: TEMPLATE_MARGIN});
+            else if (el.type==='image') el = Object.assign({}, el, {left: TEMPLATE_MARGIN});
+            return el;
+          });
+        }
+
+        function renderComparison(slideType, leftData, rightData, style) {
+          var colWidth = (CANVAS_WIDTH-2*TEMPLATE_MARGIN-GUTTER_X)/2;
+          var colHeight = 340;
+          var startY = percentY(0.3);
+          var leftX = TEMPLATE_MARGIN;
+          var rightX = TEMPLATE_MARGIN+colWidth+GUTTER_X;
+          var renderCol = function(x, data, accentColor) {
+            return [
+              _shapeElement({slideType:slideType, x:x, y:startY, width:colWidth, height:colHeight, fill:style.surface_card}),
+              _shapeElement({slideType:slideType, x:x, y:startY, width:colWidth, height:45, fill:accentColor, keypoints:[0.05], opacity:0.12}),
+              _textElement({slideType:slideType, x:x, y:startY+3, width:colWidth, height:39, content:_textHtml((data&&data.title)||'',18,'bold',accentColor), align:'center'}),
+              _textElement({slideType:slideType, x:x+10, y:startY+60, width:colWidth-20, height:colHeight-75, content:_bulletHtml((data&&data.items)||[],15,style.ink), lineHeight:1.3})
+            ];
+          };
+          return [].concat(renderCol(leftX,leftData,style.primary), renderCol(rightX,rightData,'#24a148'));
+        }
+
+        // ========== convertToPPTistFormat（重构版）==========
         function convertToPPTistFormat(outline, pages) {
-          const designSpec = outline?.design_spec || {};
-          const ds = designSpec;
-          const theme = {
-            backgroundColor: ds.bg_color || '#FFFFFF',
-            themeColors: [
-              ds.theme_color || '#3B82F6',
-              ds.accent_color || '#8B5CF6',
-              ds.text_main || '#1E293B',
-              ds.text_sub || '#64748B',
-              ds.border_color || '#E2E8F0',
-              ds.card_color || '#FFFFFF'
-            ],
-            fontColor: ds.text_main || '#1E293B',
-            fontName: (ds.font_family || 'Microsoft YaHei').split(',')[0].trim()
+          var designSpec = outline?.design_spec || {};
+          var styleId = designSpec.style_id || 'ibm_carbon';
+          var style = PPT_STYLE_PRESETS[styleId] || PPT_STYLE_PRESETS.ibm_carbon;
+
+          var themeColors = [
+            designSpec.theme_color || style.primary,
+            designSpec.accent_color || '#8B5CF6',
+            designSpec.text_main || style.ink,
+            designSpec.text_sub || style.ink_secondary,
+            designSpec.border_color || '#E2E8F0',
+            designSpec.card_color || style.surface_card
+          ];
+
+          var theme = {
+            backgroundColor: designSpec.bg_color || style.canvas,
+            themeColors: themeColors,
+            fontColor: designSpec.text_main || style.ink,
+            fontName: (designSpec.font_family || style.fontFamily || 'Microsoft YaHei').split(',')[0].trim()
           };
 
-          const titleFontSize = ds.title_font_size || 28;
-          const bodyFontSize = ds.body_font_size || 18;
-          const margin = ds.page_margin || 80;
-          const accent = ds.accent_color || '#8B5CF6';
-          const theme_color = ds.theme_color || '#3B82F6';
-          const text_main = ds.text_main || '#1E293B';
-          const text_sub = ds.text_sub || '#64748B';
-          const card_bg = ds.card_color || '#FFFFFF';
-          const border_color = ds.border_color || '#E2E8F0';
+          _elementSeq = 0;
 
-          const slides = (pages || []).map((rawPage, idx) => {
-            const page = normalizePageToSlots(rawPage);
-            const slots = page.slots || {};
-            const layout = page.layout_style || 'text_only';
-            const title = slots.title || page.title || '';
-            const subtitle = slots.subtitle || page.subtitle || '';
-            const elements = [];
-            let y = margin * 0.5;
+          var slides = (pages || []).map(function(rawPage, idx) {
+            var page = normalizePageToSlots(rawPage);
+            var slots = page.slots || {};
+            var layout = page.layout_style || 'text_only';
+            var title = slots.title || page.title || '';
+            var subtitle = slots.subtitle || page.subtitle || '';
+            var slideType = 'slide' + idx;
+            var coverMode = style.coverIsDark ? 'dark' : 'light';
+            var elements = [];
 
-            const addTitle = () => {
-              if (title) {
-                elements.push({ type: 'text', id: `title-${idx}`, left: margin, top: y, width: 1000 - 2*margin, height: titleFontSize*1.5, rotate: 0,
-                  content: `<p style="font-size:${titleFontSize}px;font-weight:700;color:${text_main};line-height:${ds.line_height_title||1.2};">${escapeHtml(title)}</p>`,
-                  defaultFontName: theme.fontName, defaultColor: text_main, textType: 'title' });
-                y += titleFontSize * 1.8;
-              }
-            };
-            const addSubtitle = () => {
-              if (subtitle) {
-                elements.push({ type: 'text', id: `subtitle-${idx}`, left: margin, top: y, width: 1000 - 2*margin, height: bodyFontSize*1.3, rotate: 0,
-                  content: `<p style="font-size:${bodyFontSize*0.75}px;color:${text_sub};line-height:${ds.line_height_body||1.6};">${escapeHtml(subtitle)}</p>`,
-                  defaultFontName: theme.fontName, defaultColor: text_sub, textType: 'subtitle' });
-                y += bodyFontSize * 2;
-              }
-            };
-            const addBullets = (items, label) => {
-              // normalize: 字符串包成数组，数组保持，非数组/非字符串跳过
-              const list = Array.isArray(items) ? items : (typeof items === 'string' && items ? [items] : []);
-              if (list.length) {
-                const h = Math.max(150, list.length * bodyFontSize * 2);
-                let html = '';
-                if (label) html += `<p style="font-size:${bodyFontSize*0.7}px;color:${theme_color};font-weight:600;margin-bottom:4px;">${escapeHtml(label)}</p>`;
-                html += list.map(t => `<p style="font-size:${bodyFontSize}px;color:${text_main};line-height:${ds.line_height_body||1.6};margin:2px 0;">• ${escapeHtml(t)}</p>`).join('');
-                elements.push({ type: 'text', id: `bullets-${idx}`, left: margin, top: y, width: 1000 - 2*margin, height: h, rotate: 0,
-                  content: html, defaultFontName: theme.fontName, defaultColor: text_main, textType: 'content' });
-                y += h + 10;
-              }
-            };
-
-            // 封面/尾页
-            if (layout === 'cover' || layout === 'ending') {
-              addTitle();
-              addSubtitle();
-            }
-            // 左文右图
-            else if (layout === 'text_left_chart_right') {
-              addTitle();
-              addSubtitle();
-              addBullets(slots.body_left || []);
-            }
-            // 左图右文
-            else if (layout === 'image_left_text_right') {
-              addTitle();
-              addSubtitle();
-              addBullets(slots.body_right || []);
-            }
-            // 双栏对比
-            else if (layout === 'comparison') {
-              addTitle();
-              addSubtitle();
-              addBullets(slots.body_left || [], slots.left_label);
-              addBullets(slots.body_right || [], slots.right_label);
-            }
-            // 三列
-            else if (layout === 'three_columns') {
-              addTitle();
-              addSubtitle();
-              addBullets(slots.col1 || [], slots.col1_title);
-              addBullets(slots.col2 || [], slots.col2_title);
-              addBullets(slots.col3 || [], slots.col3_title);
-            }
-            // 四宫格
-            else if (layout === 'grid_4') {
-              addTitle();
-              addSubtitle();
-              addBullets(slots.g1 || [], slots.g1_title);
-              addBullets(slots.g2 || [], slots.g2_title);
-              addBullets(slots.g3 || [], slots.g3_title);
-              addBullets(slots.g4 || [], slots.g4_title);
-            }
-            // 数据聚焦
-            else if (layout === 'data_focus') {
-              addTitle();
-              addSubtitle();
-              if (slots.highlight_number) {
-                elements.push({ type: 'text', id: `highlight-${idx}`, left: margin, top: y, width: 1000 - 2*margin, height: 80, rotate: 0,
-                  content: `<p style="font-size:60px;font-weight:800;color:${accent};text-align:center;letter-spacing:2px;">${escapeHtml(slots.highlight_number)}</p>`,
-                  defaultFontName: theme.fontName, defaultColor: accent, textType: 'content' });
-                y += 90;
-              }
-              if (slots.number_label) {
-                elements.push({ type: 'text', id: `numlabel-${idx}`, left: margin, top: y, width: 1000 - 2*margin, height: 30, rotate: 0,
-                  content: `<p style="font-size:${bodyFontSize*0.8}px;color:${text_sub};text-align:center;">${escapeHtml(slots.number_label)}</p>`,
-                  defaultFontName: theme.fontName, defaultColor: text_sub, textType: 'subtitle' });
-                y += 40;
-              }
-              addBullets(slots.body || []);
-            }
-            // 时间轴
-            else if (layout === 'timeline') {
-              addTitle();
-              addSubtitle();
-              const ms = Array.isArray(slots.milestones) ? slots.milestones : [];
-              if (ms.length) {
-                const items = ms.map(m => {
-                  const isCur = m && m.is_current;
-                  const l = (m && m.label) || '';
-                  const t = (m && (m.text || m.event)) || '';
-                  return `<p style="font-size:${bodyFontSize}px;color:${text_main};line-height:${ds.line_height_body||1.6};margin:4px 0;"><span style="color:${isCur?accent:text_sub};font-weight:600;margin-right:12px;">${escapeHtml(l)}</span>${escapeHtml(t)}</p>`;
-                }).join('');
-                elements.push({ type: 'text', id: `timeline-${idx}`, left: margin, top: y, width: 1000 - 2*margin, height: Math.max(150, ms.length*40), rotate: 0,
-                  content: items, defaultFontName: theme.fontName, defaultColor: text_main, textType: 'content' });
-              }
-            }
-            // 纯文字（默认）
-            else {
-              addTitle();
-              addSubtitle();
-              const bl = slots.bullets || extractExactContentFromSlots(layout, slots);
-              if (slots.keywords && slots.keywords.length) {
-                elements.push({ type: 'text', id: `keywords-${idx}`, left: margin, top: y, width: 1000 - 2*margin, height: 30, rotate: 0,
-                  content: `<p style="font-size:${bodyFontSize*0.7}px;color:${theme_color};">🔑 ${escapeHtml(slots.keywords.join(' · '))}</p>`,
-                  defaultFontName: theme.fontName, defaultColor: theme_color, textType: 'subtitle' });
-                y += 30;
-              }
-              addBullets(bl);
+            // 从 slots 中提取图片 URL
+            var imageUrl = '';
+            var inlineImg = page.inline_image_url || slots.image_right || slots.image_left || slots.image_bottom || '';
+            if (inlineImg && typeof inlineImg === 'string' && inlineImg.length > 0) {
+              imageUrl = inlineImg;
             }
 
-            const background = page.background_url
+            // 路由到对应的渲染函数
+            if (layout === 'cover') {
+              elements = renderCover(slideType, title, subtitle, style, coverMode);
+            } else if (layout === 'ending') {
+              elements = renderEnding(slideType, title, subtitle, style);
+            } else if (layout === 'text_left_chart_right') {
+              var bulletsLeft = (slots.body_left || []).filter(Boolean);
+              elements = renderTextLeftChartRight(slideType, title, subtitle, bulletsLeft, imageUrl, style);
+            } else if (layout === 'image_left_text_right') {
+              var bulletsRight = (slots.body_right || []).filter(Boolean);
+              elements = renderImageLeftTextRight(slideType, title, subtitle, bulletsRight, imageUrl, style);
+            } else if (layout === 'comparison') {
+              var leftData = { title: slots.left_label || '方案A', items: (slots.body_left || []).filter(Boolean) };
+              var rightData = { title: slots.right_label || '方案B', items: (slots.body_right || []).filter(Boolean) };
+              elements = renderComparison(slideType, leftData, rightData, style);
+            } else if (layout === 'three_columns') {
+              var cols = [
+                { title: slots.col1_title || '列1', items: (slots.col1 || []).filter(Boolean) },
+                { title: slots.col2_title || '列2', items: (slots.col2 || []).filter(Boolean) },
+                { title: slots.col3_title || '列3', items: (slots.col3 || []).filter(Boolean) }
+              ];
+              elements = renderThreeColumns(slideType, cols, style);
+            } else if (layout === 'grid_4') {
+              var gridData = [
+                { title: slots.g1_title || '格1', value: (slots.g1 || '').toString() },
+                { title: slots.g2_title || '格2', value: (slots.g2 || '').toString() },
+                { title: slots.g3_title || '格3', value: (slots.g3 || '').toString() },
+                { title: slots.g4_title || '格4', value: (slots.g4 || '').toString() }
+              ];
+              elements = renderGrid4(slideType, gridData, style);
+            } else if (layout === 'data_focus') {
+              var kpi = { label: slots.number_label || '', value: slots.highlight_number || '' };
+              var desc = (slots.body || []).filter(Boolean);
+              elements = renderDataFocus(slideType, kpi, desc, imageUrl, style);
+            } else if (layout === 'timeline') {
+              var ms = Array.isArray(slots.milestones) ? slots.milestones.map(function(m) {
+                return typeof m === 'string' ? { label: '', text: m } : m;
+              }) : [];
+              elements = renderTimeline(slideType, ms, style);
+            } else {
+              // text_only 和所有其他版式
+              var bullets = slots.bullets || extractExactContentFromSlots(layout, slots) || [];
+              bullets = Array.isArray(bullets) ? bullets.filter(Boolean) : [];
+              elements = renderTextOnly(slideType, title, subtitle, bullets, style);
+            }
+
+            // 背景：优先使用页面 background_url，否则纯色
+            var background = page.background_url
               ? { type: 'image', image: { src: page.background_url, size: 'cover' } }
-              : { type: 'solid', color: ds.bg_color || '#F8FAFC' };
+              : { type: 'solid', color: designSpec.bg_color || style.canvas };
 
             return {
-              id: `slide-${idx}`,
-              elements,
-              background
+              id: 'slide-' + idx,
+              elements: elements,
+              background: background
             };
           });
 
@@ -3868,8 +4013,8 @@
             title: outline?.core_subject || aiPPTTopic.value || 'AI生成演示文稿',
             width: 1000,
             height: 562.5,
-            theme,
-            slides
+            theme: theme,
+            slides: slides
           };
         }
 
@@ -5633,6 +5778,7 @@ ${sentencesList}
               if (!iframe?.contentWindow || event.source !== iframe.contentWindow) return;
               if (!aiPPTAssembledPages.value.length) return;
               const pptistData = convertToPPTistFormat(aiPPTOutline.value, aiPPTAssembledPages.value);
+              console.log('[Parent] sending LOAD_PPT_DATA, slides:', pptistData.slides.length, 'first slide elements:', pptistData.slides[0]?.elements?.length);
               iframe.contentWindow.postMessage({ type: 'LOAD_PPT_DATA', data: pptistData }, '*');
               addLog('✅ PPTist 编辑器就绪，已发送 PPT 数据', 'success');
             }
